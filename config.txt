@@ -1,0 +1,24 @@
+[electronRecoSF
+    name=egammaEffi_EGM2D_electron_reconstruction.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+]
+[photonLoose
+    name=egammaEffi_EGM2D_photon_cutbased_looseID.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+]
+[electronLoose
+    name=egammaEffi_EGM2D_electron_cutbased_looseID.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+]
+[electronTight
+    name=egammaEffi_EGM2D_electron_cutbased_tightID.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+]
