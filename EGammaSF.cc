@@ -84,7 +84,7 @@ float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
 }
 
 
-void ScaleFactorHelper::SetEtaBin(double superClusterEta)
+void ScaleFactorHelper::SetEtaBin(float superClusterEta)
 {
   input_eta_ = superClusterEta;  
   etaBin_ = egm2d_.GetXaxis() -> FindBin(superClusterEta);
@@ -93,7 +93,7 @@ void ScaleFactorHelper::SetEtaBin(double superClusterEta)
   {std::string err = "tried to evaluate scale factor for |eta| >"; err.append(std::to_string(TMath::Abs(egm2d_.GetXaxis()->GetBinLowEdge(1)))); throw my_range_error(err);}
 }
 
-void ScaleFactorHelper::SetPtBin(double pT)
+void ScaleFactorHelper::SetPtBin(float pT)
 {
   input_pt_ = pT;  
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);

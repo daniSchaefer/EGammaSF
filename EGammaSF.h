@@ -167,7 +167,7 @@ public:
 
 
 
-//    double GetEfficiency(double pT, double superClusterEta, std::string mode);     // => return efficiency in MC or data 
+   float GetEfficiency(float pT, float superClusterEta,bool isData);     // => return efficiency in MC or data 
 // //============================================
 // // return right bin content of TH2D histo   
     float GetSF(float pT, float superClusterEta);
@@ -183,8 +183,8 @@ public:
 // //============================================   
 //       
 //    
-//    double GetSFSmooth(double pT, double superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
-//    double GetUncertaintySmooth(double pT, double superClusterEta);           // => should do something sensible with under/overflow
+//    float GetSFSmooth(float pT, float superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
+//    float GetUncertaintySmooth(float pT, float superClusterEta);           // => should do something sensible with under/overflow
 //                                                                              // => throw error for uninitialized class
 //    
 // //============================================
@@ -197,9 +197,9 @@ public:
 //===============================================
 // sets private variable pTBin_ / etaBin_ i.e. the bin number of given pT/eta value in TH2D
 // this function has to handle the underflow/overflow properly
-void SetEtaBin(double superClusterEta);
+void SetEtaBin(float superClusterEta);
 // last bin in pT is not used as SF (low statistics) but just as controll -> take pT bin before instead!
-void SetPtBin( double pT);
+void SetPtBin( float pT);
 //===============================================    
 
 
