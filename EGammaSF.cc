@@ -98,7 +98,10 @@ void ScaleFactorHelper::SetPtBin(double pT)
   input_pt_ = pT;  
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);
   maxBinpt_ = egm2d_.GetYaxis() -> GetNbins();
-  if(ptBin_ ==0) {std::string err = "tried to evaluate scale factor for pt < "; err.append(std::to_string(egm2d_.GetYaxis()->GetBinLowEdge(ptBin_+1)));throw my_range_error(err);}
+  if(ptBin_ ==0) {std::string err = "tried to evaluate scale factor for pt < "; err.append(std::to_string(egm2d_.GetYaxis()->GetBinLowEdge(ptBin_+1)));
+      std::cout << err << std::endl;
+      ptBin_=1;
+      /*throw my_range_error(err);*/}
   if(ptBin_ >= maxBinpt_ and maxBinpt_ > 1 ) ptBin_ = maxBinpt_-1;  // last pt bin is only used as control but the scale-factor here should not be used because of limited statistics
 }
 
