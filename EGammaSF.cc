@@ -27,15 +27,28 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));          
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
-
+   fit_flag_ = parser->FitFlag();
+        PrintDebug(Form("initialising histogram names using : %s, %s, %s", parser->NameSF().c_str() ,parser->NameEffMC().c_str(), parser->NameEffData().c_str()));
+        PrintDebug(Form("fitting flag set to : %i",fit_flag_));
+   //set fit range:
+        int nBins = egm2d_.GetYaxis()->GetNbins();
+        rangelow_= egm2d_.GetYaxis()->GetBinLowEdge(1);
+        rangeup_ = egm2d_.GetYaxis()->GetBinLowEdge(nBins)+ egm2d_.GetYaxis()->GetBinWidth(nBins);
+        PrintDebug(Form("set range to %.1f - %.1f",rangelow_,rangeup_));
    TCanvas* c = new TCanvas();
    egm2d_.Draw("COLZ");
    c->SaveAs("histo.pdf");
   
+   
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
    {
         TGraphErrors g = GetTGraph(i);
-        DrawSF(g, egm2d_.GetXaxis() -> GetBinCenter(i));
+        TGraphErrors gunc = GetTGraph(i,1);
+        TF1 fit = GetFitFunction(i);
+        TFitResult* res = (g.Fit(&fit,"MSR")).Get();
+        res->Print();
+        DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+        DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
    }
  }
  
@@ -55,7 +68,7 @@ float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
   }
   sf = egm2d_.GetBinContent(etaBin_,ptBin_);
   
-  std::cout << "pt : " <<pT << " pt bin : " << ptBin_ << " eta: " << superClusterEta << " eta bin : " << etaBin_ << std::endl;
+  //std::cout << "pt : " <<pT << " pt bin : " << ptBin_ << " eta: " << superClusterEta << " eta bin : " << etaBin_ << std::endl;
   
   return sf;  
 }
@@ -84,7 +97,7 @@ float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
 }
 
 
-void ScaleFactorHelper::SetEtaBin(double superClusterEta)
+void ScaleFactorHelper::SetEtaBin(float superClusterEta)
 {
   input_eta_ = superClusterEta;  
   etaBin_ = egm2d_.GetXaxis() -> FindBin(superClusterEta);
@@ -93,7 +106,7 @@ void ScaleFactorHelper::SetEtaBin(double superClusterEta)
   {std::string err = "tried to evaluate scale factor for |eta| >"; err.append(std::to_string(TMath::Abs(egm2d_.GetXaxis()->GetBinLowEdge(1)))); throw my_range_error(err);}
 }
 
-void ScaleFactorHelper::SetPtBin(double pT)
+void ScaleFactorHelper::SetPtBin(float pT)
 {
   input_pt_ = pT;  
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);
@@ -106,54 +119,131 @@ void ScaleFactorHelper::SetPtBin(double pT)
 }
 
 
-TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin)
+TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
 {
     int max = egm2d_.GetYaxis()-> GetNbins();
     float eta = egm2d_.GetXaxis()-> GetBinCenter(etaBin);
     TGraphErrors *g = new TGraphErrors(max);
     
-    std::cout << max << std::endl;
     for(int i=1; i< max+1;i++)
     {
-        std::cout << i << std::endl;
         float pt = egm2d_.GetYaxis() -> GetBinCenter(i);
         float sf = GetSF(pt,eta);
         float pt_unc = egm2d_.GetYaxis() -> GetBinWidth(i) /2.;
-        std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
+        //std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
         float sf_unc = GetUncertainty(pt,eta);
+        if (forUncertainty) sf =1;
         g->SetPoint(i-1,pt,sf);
         g->SetPointError(i-1,pt_unc,sf_unc);
-        std::cout << " bla " << i << std::endl;
     }
     return *g;
 }
 
 
-void ScaleFactorHelper::DrawSF(TGraphErrors g, float eta)
+void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
 {
-  TCanvas* cg = new TCanvas();
-  g.GetXaxis()->SetTitle("pT (GeV)");
-  g.GetYaxis()->SetTitle("scale factor");
-  g.SetLineColor(kBlue);
-  g.SetLineWidth(2);
-  g.SetMarkerColor(kBlack);
-  g.SetMarkerStyle(8);
-  g.SetMaximum(1.1);
-  g.SetMinimum(0.8);
-  g.Draw("ALP");
-  TPaveText* addInfo = new TPaveText(0.9,0.02,0.64,0.3,"NDC");
-  addInfo->SetFillColor(0);
-  addInfo->SetLineColor(0);
-  addInfo->SetFillStyle(0);
-  addInfo->SetBorderSize(0);
-  addInfo->SetTextFont(42);
-  addInfo->SetTextSize(0.040);
-  addInfo->SetTextAlign(12);
-  addInfo->AddText(Form("#eta =  %.1f ", eta));
-  addInfo->Draw("same");
-  cg->SaveAs(Form("graph_%.1f.pdf",eta));  
-    
+    TCanvas* cg = new TCanvas();
+    g.GetXaxis()->SetTitle("pT (GeV)");
+    g.GetYaxis()->SetTitle("scale factor");
+    g.SetLineColor(kBlue);
+    g.SetLineWidth(2);
+    g.SetMarkerColor(kBlack);
+    g.SetMarkerStyle(8);
+    f.SetLineColor(kRed);
+    f.SetLineWidth(2);
+    //g.SetMaximum(1.1);
+    //g.SetMinimum(0.8);
+    g.Draw("ALP");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    float Chi2 = g.Chisquare(&f,"R");
+    int ndof   = maxBinpt_ -2;
+    std::cout << " chi2 " <<  Chi2 << " ndof " << ndof << std::endl;
+    addInfo->AddText(Form("#eta =  %.1f ", eta));
+    addInfo->AddText(f.GetExpFormula());
+    addInfo->AddText(Form("#chi^{2}/ndof = %.3f ",Chi2/ndof));
+    addInfo->Draw("same");
+    cg->SaveAs(Form("graph_%.1f_fitfunction%i.pdf",eta,fit_flag_));  
+      
     
 }
+
+
+void ScaleFactorHelper::DrawSF(TGraphErrors g, float eta)
+{
+    TCanvas* cg = new TCanvas();
+    g.GetXaxis()->SetTitle("pT (GeV)");
+    g.GetYaxis()->SetTitle("scale factor");
+    g.SetLineColor(kBlue);
+    g.SetLineWidth(2);
+    g.SetMarkerColor(kBlack);
+    g.SetMarkerStyle(8);
+    g.Draw("ALP");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    addInfo->AddText(Form("#eta =  %.1f ", eta));
+    addInfo->Draw("same");
+    cg->SaveAs(Form("graph_%.1f_uncertainty.pdf",eta));  
+}
+
+
+
+float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isData)
+{
+    if( pT!=input_pt_ or superClusterEta != input_eta_)
+    {
+        SetEtaBin(superClusterEta);
+        SetPtBin(pT);
+    } 
+    if(isData) return efficiency_data_.GetBinContent(etaBin_,ptBin_); 
+    return efficiency_mc_.GetBinContent(etaBin_,ptBin_); 
+    
+}
+
+ TF1 ScaleFactorHelper::GetFitFunction(int etaBin)
+ {
+     TF1* f;
+     if(fit_flag_==0)
+     {
+         f = new TF1("f","[0]+ atan([1]*x)",rangelow_,rangeup_);
+         return *f;
+     }
+     if(fit_flag_==1)
+     {
+         f = new TF1("f","[0]+ [1]*(1/x)",rangelow_,rangeup_);
+         f->SetParLimits(1,-10,0.);
+         return *f;
+     }
+     if(fit_flag_==2)
+     {
+         f = new TF1("f","[0]+ [1]*(1/(x*x))",rangelow_,rangeup_);
+         f->SetParameter(0,egm2d_.GetBinContent(maxBinpt_,etaBin));
+         f->SetParLimits(1,-600,0.);
+         return *f;
+     }
+     
+     if(fit_flag_==11)
+     {
+         f = new TF1("f","[0]",rangelow_,rangeup_);
+         //f->SetParameter(0,egm2d_.GetBinContent(maxBinpt_,etaBin));
+         //f->SetParLimits(1,-600,0.);
+         return *f;
+     }
+     
+     
+     throw my_range_error("wrong fitting flag used");
+ }
 
     

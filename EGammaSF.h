@@ -2,7 +2,10 @@
 #define EGAMMASF_H
 
 #include "TH2F.h"
+#include "TF1.h"
 #include "TGraphErrors.h"
+#include "TFitResultPtr.h"
+#include "TFitResult.h"
 #include<iostream>
 #include<fstream>
 #include<exception>
@@ -61,6 +64,7 @@ class my_range_error: public std::exception
      std::string NameEffData(){return effdata_;};
      std::string NameSF(){ return sf_;};
      std::string NameFile(){ return filename_;};
+     int FitFlag(){ return fit_flag_;};
      
  private:
      void ReadFile(std::ifstream &config, EGammaInput sf) {
@@ -100,6 +104,12 @@ class my_range_error: public std::exception
                  std::size_t n2 = line2.find_first_of("\n");
                  sf_ = line2.substr(n1+1,n2);
             }
+             if( line2.find("FitFunc")!=std::string::npos)
+            {
+                 std::size_t n1 = line2.find_first_of("=");
+                 std::size_t n2 = line2.find_first_of("\n");
+                 fit_flag_ = atoi(line2.substr(n1+1,n2).c_str());
+            }
             
                 if( line2.find("]")!=std::string::npos) break;
             }
@@ -113,6 +123,7 @@ class my_range_error: public std::exception
      std::string effdata_ = "EGamma_EffData2D";
      std::string sf_ = "EGamma_SF2D";
      std::string filename_ ="";
+     int fit_flag_ =0;
      
      std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
@@ -167,7 +178,7 @@ public:
 
 
 
-//    double GetEfficiency(double pT, double superClusterEta, std::string mode);     // => return efficiency in MC or data 
+   float GetEfficiency(float pT, float superClusterEta,bool isData);     // => return efficiency in MC or data 
 // //============================================
 // // return right bin content of TH2D histo   
     float GetSF(float pT, float superClusterEta);
@@ -183,8 +194,8 @@ public:
 // //============================================   
 //       
 //    
-//    double GetSFSmooth(double pT, double superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
-//    double GetUncertaintySmooth(double pT, double superClusterEta);           // => should do something sensible with under/overflow
+//    float GetSFSmooth(float pT, float superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
+//    float GetUncertaintySmooth(float pT, float superClusterEta);           // => should do something sensible with under/overflow
 //                                                                              // => throw error for uninitialized class
 //    
 // //============================================
@@ -197,16 +208,16 @@ public:
 //===============================================
 // sets private variable pTBin_ / etaBin_ i.e. the bin number of given pT/eta value in TH2D
 // this function has to handle the underflow/overflow properly
-void SetEtaBin(double superClusterEta);
+void SetEtaBin(float superClusterEta);
 // last bin in pT is not used as SF (low statistics) but just as controll -> take pT bin before instead!
-void SetPtBin( double pT);
+void SetPtBin( float pT);
 //===============================================    
 
 
 //===============================================
 // get all pT values (and uncertainties) corresponding to the bin in eta etaBin and put them into a TGraphErrors
 // this function has to handle additional uncertainties applied depending on pT (for example 1% extra uncertainty for pT < 20 GeV) see:  https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammaIDRecipesRun2
- TGraphErrors GetTGraph(int etaBin);
+ TGraphErrors GetTGraph(int etaBin, bool forUncertainty =0);
 //===============================================    
  
 // //===============================================
@@ -225,7 +236,7 @@ void SetPtBin( double pT);
 // 
 // //===============================================
 // // return a fit function according to fit_flag_ i.e. 0 simple factor, 1 polynomial degree 1 or other functions that seem resonable and should be tried out
-// TF1 GetFitFunction();
+ TF1 GetFitFunction(int etaBin);
 // //===============================================
 // 
 // 
@@ -238,6 +249,7 @@ void SetPtBin( double pT);
  
  //===============================================
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
+ void DrawSF(TGraphErrors g, TF1 f, float eta);
  void DrawSF(TGraphErrors g, float eta);
  //===============================================
  
@@ -256,7 +268,7 @@ void PrintDebug(std::string stuff)
 // //===============================================
 // //===============================================
         bool debug_flag_ =0; // if set to 1 print/draw additional information
-//        int fit_flag_ =0;    // use different functions for the fit of SF (smoothing)
+        int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
 //        int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
 //        
 
@@ -265,6 +277,8 @@ void PrintDebug(std::string stuff)
         int ptBin_  = -99;                  // safe bin number of pT bin currently used
         int maxBinpt_;
         int maxBineta_;
+        float rangelow_;
+        float rangeup_;
 //        std::string particle_;
 //        std::string identification_;     // safe initialization values
 //        std::string working_point_;
