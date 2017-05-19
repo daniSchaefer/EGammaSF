@@ -186,15 +186,15 @@ public:
    
                                                                             // => functions have to handle pT/eta values in underflow or overflow
 //============================================                               // => they should initialize pT,eta,sf, unc private variables and only recalculate when pT/eta given is different than in
- // get error of right bin of TH2D histo                                            iteration before! (saves time)
- // add additional uncertainties                                              // => should throw and error if the class wasn't properly initialized in the constructor
- // return uncertainty
+// get error of right bin of TH2D histo                                            iteration before! (saves time)
+// add additional uncertainties                                              // => should throw and error if the class wasn't properly initialized in the constructor
+// return uncertainty
        
     float GetUncertainty(float pT, float superClusterEta);
-// //============================================   
-//       
-//    
-//    float GetSFSmooth(float pT, float superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
+//============================================   
+       
+    
+    float GetSFSmooth(float pT, float superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
 //    float GetUncertaintySmooth(float pT, float superClusterEta);           // => should do something sensible with under/overflow
 //                                                                              // => throw error for uninitialized class
 //    
@@ -220,12 +220,12 @@ void SetPtBin( float pT);
  TGraphErrors GetTGraph(int etaBin, bool forUncertainty =0);
 //===============================================    
  
-// //===============================================
-// // fit a predefined function to input graph and return a clone of the fit function with fixed values
-// TF1 FitScaleFactor(TGraphErrors g_eta);
-// //===============================================
-// 
-// 
+//===============================================
+// fit a predefined function to input graph and return a clone of the fit function with fixed values
+ TF1 FitScaleFactor(TGraphErrors g, int etaBin);
+//===============================================
+ 
+ 
 // //===============================================
 // // fix uncertainty function from input graph => start as in  https://indico.cern.ch/event/482669/contributions/1991571/attachments/1253608/1849618/20160406CharlotScaleFactors.pdf slide 6
 // // add additional functions later /fit?
@@ -235,14 +235,14 @@ void SetPtBin( float pT);
 // 
 // 
 // //===============================================
-// // return a fit function according to fit_flag_ i.e. 0 simple factor, 1 polynomial degree 1 or other functions that seem resonable and should be tried out
+// // return a fit function according to fit_flag_ 
  TF1 GetFitFunction(int etaBin);
 // //===============================================
 // 
 // 
 // //===============================================
 // // return a fit function according to uncertainty_flag_ (functions that seem resonable and should be tried out )
-// // => SmoothUncertainty needs to react differently to the funcitons (most likely)
+// // => SmoothUncertainty needs to react differently to the functions (most likely)
  TF1 GetUncertaintyFunction(int etaBin);
 // //===============================================
  
@@ -261,16 +261,16 @@ void PrintDebug(std::string stuff)
     std::cout << stuff << std::endl;   
   }
 };
-// 
-// 
-// 
-// //               private variables
-// //===============================================
-// //===============================================
+ 
+ 
+ 
+//               private variables
+//===============================================
+//===============================================
         bool debug_flag_ =0; // if set to 1 print/draw additional information
         int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
         int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
-//        
+        
 
         EGammaInput input_;
         int etaBin_ = -99;                 // safe bin number of etaBin currently used
@@ -279,23 +279,19 @@ void PrintDebug(std::string stuff)
         int maxBineta_;
         float rangelow_;
         float rangeup_;
-//        std::string particle_;
-//        std::string identification_;     // safe initialization values
-//        std::string working_point_;
-//        
+        
         float input_pt_;
         float input_eta_;              // safe eta/pt values SF are currently evaluated for
-//        
+       
         TH2F egm2d_;                    // safe 2d histo containing scale factors
         TH2F efficiency_mc_;            // safe 2d histo containing efficiency in mc
         TH2F efficiency_data_;          // safe 2d histo containing efficiency in data
-//        
-//        std::vector<TGraphErrors> graphs_; // safe graphs containing SF+Unc per eta etaBin
-//        std::vector<TF1> smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
-//        std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
-// 
-// //===============================================
-// //===============================================
+        
+        std::vector<TF1> smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
+        //std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
+ 
+//===============================================
+//===============================================
 
 };
 

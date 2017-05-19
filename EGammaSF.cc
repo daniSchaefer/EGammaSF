@@ -38,21 +38,26 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    TCanvas* c = new TCanvas();
    egm2d_.Draw("COLZ");
    c->SaveAs("histo.pdf");
-  
-   
+        PrintDebug("===============================================================");
+        PrintDebug("starting fit for scale factors ");
+        PrintDebug("===============================================================");
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
    {
         TGraphErrors g = GetTGraph(i);
-        TGraphErrors gunc = GetTGraph(i,1);
-        TF1 fit = GetFitFunction(i);
-        TF1 fitunc = GetUncertaintyFunction(i);
-        std::cout << " graph pointer : " << &gunc << std::endl;
-        //TFitResult* res = (g.Fit(&fit,"MSR")).Get();
-        fitunc.SetParameter(2,gunc.GetMinimum());
-        gunc.Fit(&fitunc,"RW");
-        //res->Print();
-        //DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
-        DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
+        TF1 fit = FitScaleFactor(g,i);
+        smooth_sf_.push_back(fit);
+        PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
+        DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+   }
+   for(int i=1;i<egm2d_.GetXaxis()->GetNbins()+1;i++)
+   {
+      TGraphErrors gunc = GetTGraph(i,1);
+      TF1 fitunc = GetUncertaintyFunction(i);
+      fitunc.SetParameter(2,gunc.GetMinimum());
+      TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
+      //fitres->Print();
+      DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
+       
    }
  }
  
@@ -76,6 +81,16 @@ float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
   
   return sf;  
 }
+
+float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
+{
+   SetEtaBin(superClusterEta);
+   if(pT > rangeup_) return smooth_sf_.at(etaBin_-1).Eval(rangeup_);
+   if(pT < rangelow_) return smooth_sf_.at(etaBin_-1).Eval(rangelow_);
+   float sf = smooth_sf_.at(etaBin_-1).Eval(pT);
+   return sf;    
+}
+
 
 float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
 {
@@ -148,6 +163,14 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         }
     }
     return *g;
+}
+
+TF1 ScaleFactorHelper::FitScaleFactor(TGraphErrors g, int etaBin)
+{
+  TF1 fit = GetFitFunction(etaBin);
+  TFitResult* res = (g.Fit(&fit,"MSR")).Get();
+  res->Print();  
+  return fit;  
 }
 
 

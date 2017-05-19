@@ -31,7 +31,8 @@ int main(int argc, char** argv)
         {
         float unc = bla->GetUncertainty(30+i*10,2.1);
         float sf = bla->GetSF(30.0+i*10,2.1);
-        std::cout << "sf : " << sf << " +- " << unc << std::endl;
+        float sf_smooth = bla->GetSFSmooth(30+i*10., 2.1);
+        std::cout << "sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << std::endl;
         }
         
         float eff = bla->GetEfficiency(600,-1.2,0);
