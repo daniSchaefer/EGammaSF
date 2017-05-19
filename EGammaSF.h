@@ -243,7 +243,7 @@ void SetPtBin( float pT);
 // //===============================================
 // // return a fit function according to uncertainty_flag_ (functions that seem resonable and should be tried out )
 // // => SmoothUncertainty needs to react differently to the funcitons (most likely)
-// TF1 GetUncertaintyFunction();
+ TF1 GetUncertaintyFunction(int etaBin);
 // //===============================================
  
  
@@ -251,7 +251,6 @@ void SetPtBin( float pT);
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
  void DrawSF(TGraphErrors g, TF1 f, float eta);
  void DrawSF(TGraphErrors g, float eta);
-
  //===============================================
  
  
@@ -270,7 +269,7 @@ void PrintDebug(std::string stuff)
 // //===============================================
         bool debug_flag_ =0; // if set to 1 print/draw additional information
         int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
-//        int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
+        int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
 //        
 
         EGammaInput input_;

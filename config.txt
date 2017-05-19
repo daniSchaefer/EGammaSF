@@ -21,5 +21,5 @@
     EffMC=EGamma_EffMC2D
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
-    FitFunction=11
+    FitFunction=3
 ]

@@ -45,9 +45,13 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         TGraphErrors g = GetTGraph(i);
         TGraphErrors gunc = GetTGraph(i,1);
         TF1 fit = GetFitFunction(i);
-        TFitResult* res = (g.Fit(&fit,"MSR")).Get();
-        res->Print();
-        DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+        TF1 fitunc = GetUncertaintyFunction(i);
+        std::cout << " graph pointer : " << &gunc << std::endl;
+        //TFitResult* res = (g.Fit(&fit,"MSR")).Get();
+        fitunc.SetParameter(2,gunc.GetMinimum());
+        gunc.Fit(&fitunc,"RW");
+        //res->Print();
+        //DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
         DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
    }
  }
@@ -132,9 +136,16 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         float pt_unc = egm2d_.GetYaxis() -> GetBinWidth(i) /2.;
         //std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
         float sf_unc = GetUncertainty(pt,eta);
-        if (forUncertainty) sf =1;
+        if (forUncertainty)
+        {
+           g->SetPoint(i-1,pt,sf_unc/sf);
+           g->SetPointError(i-1,pt_unc,0.);
+        }
+        else
+        {
         g->SetPoint(i-1,pt,sf);
         g->SetPointError(i-1,pt_unc,sf_unc);
+        }
     }
     return *g;
 }
@@ -154,6 +165,7 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
     //g.SetMaximum(1.1);
     //g.SetMinimum(0.8);
     g.Draw("ALP");
+    f.Draw("same");
     TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
     addInfo->SetFillColor(0);
     addInfo->SetLineColor(0);
@@ -233,6 +245,13 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
          f->SetParLimits(1,-600,0.);
          return *f;
      }
+     if(fit_flag_==3)
+     {
+         f = new TF1("f","[0] + [1]*(1/x^[2])",rangelow_,rangeup_);
+         //f->SetParameter(0,egm2d_.GetBinContent(maxBinpt_,etaBin));
+         f->SetParLimits(1,-600,0.);
+         return *f;
+     }
      
      if(fit_flag_==11)
      {
@@ -243,7 +262,22 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      }
      
      
-     throw my_range_error("wrong fitting flag used");
+     throw my_range_error("wrong fitting flag used in scale factor fit");
  }
 
+ 
+ 
+TF1 ScaleFactorHelper::GetUncertaintyFunction(int etaBin)
+ {
+     TF1* f;
+     if(uncertainty_flag_==0)
+     {
+         f = new TF1("f","[2]+ [1]*(x-[0])^(2)",rangelow_,150.);
+         f->SetParLimits(0,20.,150.);
+         return *f;
+     }     
+     
+     throw my_range_error("wrong fitting flag used in uncertainty smoothing");
+ }
+ 
     
