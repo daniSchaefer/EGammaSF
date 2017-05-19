@@ -43,10 +43,12 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
    {
         TGraphErrors g = GetTGraph(i);
+        TGraphErrors gunc = GetTGraph(i,1);
         TF1 fit = GetFitFunction(i);
         TFitResult* res = (g.Fit(&fit,"MSR")).Get();
         res->Print();
         DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+        DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
    }
  }
  
@@ -117,7 +119,7 @@ void ScaleFactorHelper::SetPtBin(float pT)
 }
 
 
-TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin)
+TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
 {
     int max = egm2d_.GetYaxis()-> GetNbins();
     float eta = egm2d_.GetXaxis()-> GetBinCenter(etaBin);
@@ -130,6 +132,7 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin)
         float pt_unc = egm2d_.GetYaxis() -> GetBinWidth(i) /2.;
         //std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
         float sf_unc = GetUncertainty(pt,eta);
+        if (forUncertainty) sf =1;
         g->SetPoint(i-1,pt,sf);
         g->SetPointError(i-1,pt_unc,sf_unc);
     }
@@ -151,7 +154,6 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
     //g.SetMaximum(1.1);
     //g.SetMinimum(0.8);
     g.Draw("ALP");
-    f.Draw("same");
     TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
     addInfo->SetFillColor(0);
     addInfo->SetLineColor(0);
@@ -171,6 +173,31 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
       
     
 }
+
+
+void ScaleFactorHelper::DrawSF(TGraphErrors g, float eta)
+{
+    TCanvas* cg = new TCanvas();
+    g.GetXaxis()->SetTitle("pT (GeV)");
+    g.GetYaxis()->SetTitle("scale factor");
+    g.SetLineColor(kBlue);
+    g.SetLineWidth(2);
+    g.SetMarkerColor(kBlack);
+    g.SetMarkerStyle(8);
+    g.Draw("ALP");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    addInfo->AddText(Form("#eta =  %.1f ", eta));
+    addInfo->Draw("same");
+    cg->SaveAs(Form("graph_%.1f_uncertainty.pdf",eta));  
+}
+
 
 
 float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isData)

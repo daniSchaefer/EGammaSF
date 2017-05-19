@@ -217,7 +217,7 @@ void SetPtBin( float pT);
 //===============================================
 // get all pT values (and uncertainties) corresponding to the bin in eta etaBin and put them into a TGraphErrors
 // this function has to handle additional uncertainties applied depending on pT (for example 1% extra uncertainty for pT < 20 GeV) see:  https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammaIDRecipesRun2
- TGraphErrors GetTGraph(int etaBin);
+ TGraphErrors GetTGraph(int etaBin, bool forUncertainty =0);
 //===============================================    
  
 // //===============================================
@@ -250,6 +250,8 @@ void SetPtBin( float pT);
  //===============================================
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
  void DrawSF(TGraphErrors g, TF1 f, float eta);
+ void DrawSF(TGraphErrors g, float eta);
+
  //===============================================
  
  
