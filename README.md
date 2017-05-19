@@ -3,12 +3,12 @@
 
 provides simple class to help analysist extract the scale-factors provided by EGamma POG.
 
+
 ## While in debugging stage:
     use makefile and test.cpp to get minimal working example
     
     
 ## Class properties:
-
      needs config file in which the filename for the corresponding root file, and the names of the histograms are specified 
      construct with ScaleFactorHelper( EGammaInput, bool )
         - first argument determines which scale factors are used. possibilities are:
@@ -26,3 +26,14 @@ provides simple class to help analysist extract the scale-factors provided by EG
 
      after initialization scale factors/ uncertainties / efficiencies can be calculated with the method GetSF(pt,eta), GetUncertainty(pt,eta), GetEfficiency(pt,eta,isData)
      
+     
+     
+## structure of config-file:
+    all arguments for one input have to started with "[<name of EGammaInput>" and stopped with "]"
+    general syntax is "<name of variable to set>=<variable>" without putting any spaces in between
+    minimal example:
+        [electronLoose
+            name=nameOfRootfile.root
+        ]
+        the name of the root-file that contains the scale factors has to be stated here! every other variable has a default
+    
