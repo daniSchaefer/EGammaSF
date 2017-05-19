@@ -2,7 +2,10 @@
 #define EGAMMASF_H
 
 #include "TH2F.h"
+#include "TF1.h"
 #include "TGraphErrors.h"
+#include "TFitResultPtr.h"
+#include "TFitResult.h"
 #include<iostream>
 #include<fstream>
 #include<exception>
@@ -61,6 +64,7 @@ class my_range_error: public std::exception
      std::string NameEffData(){return effdata_;};
      std::string NameSF(){ return sf_;};
      std::string NameFile(){ return filename_;};
+     int FitFlag(){ return fit_flag_;};
      
  private:
      void ReadFile(std::ifstream &config, EGammaInput sf) {
@@ -100,6 +104,12 @@ class my_range_error: public std::exception
                  std::size_t n2 = line2.find_first_of("\n");
                  sf_ = line2.substr(n1+1,n2);
             }
+             if( line2.find("FitFunc")!=std::string::npos)
+            {
+                 std::size_t n1 = line2.find_first_of("=");
+                 std::size_t n2 = line2.find_first_of("\n");
+                 fit_flag_ = atoi(line2.substr(n1+1,n2).c_str());
+            }
             
                 if( line2.find("]")!=std::string::npos) break;
             }
@@ -113,6 +123,7 @@ class my_range_error: public std::exception
      std::string effdata_ = "EGamma_EffData2D";
      std::string sf_ = "EGamma_SF2D";
      std::string filename_ ="";
+     int fit_flag_ =0;
      
      std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
@@ -225,7 +236,7 @@ void SetPtBin( float pT);
 // 
 // //===============================================
 // // return a fit function according to fit_flag_ i.e. 0 simple factor, 1 polynomial degree 1 or other functions that seem resonable and should be tried out
-// TF1 GetFitFunction();
+ TF1 GetFitFunction(int etaBin);
 // //===============================================
 // 
 // 
@@ -238,7 +249,7 @@ void SetPtBin( float pT);
  
  //===============================================
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
- void DrawSF(TGraphErrors g, float eta);
+ void DrawSF(TGraphErrors g, TF1 f, float eta);
  //===============================================
  
  
@@ -256,7 +267,7 @@ void PrintDebug(std::string stuff)
 // //===============================================
 // //===============================================
         bool debug_flag_ =0; // if set to 1 print/draw additional information
-//        int fit_flag_ =0;    // use different functions for the fit of SF (smoothing)
+        int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
 //        int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
 //        
 
@@ -265,6 +276,8 @@ void PrintDebug(std::string stuff)
         int ptBin_  = -99;                  // safe bin number of pT bin currently used
         int maxBinpt_;
         int maxBineta_;
+        float rangelow_;
+        float rangeup_;
 //        std::string particle_;
 //        std::string identification_;     // safe initialization values
 //        std::string working_point_;

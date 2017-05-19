@@ -33,6 +33,12 @@ int main(int argc, char** argv)
         float sf = bla->GetSF(30.0+i*10,2.1);
         std::cout << "sf : " << sf << " +- " << unc << std::endl;
         }
+        
+        float eff = bla->GetEfficiency(600,-1.2,0);
+        float effdata = bla->GetEfficiency(600,-1.2,1);
+        std::cout << bla->GetSF(600,-1.2) << std::endl;
+        std::cout << "GetEfficiency mc " << eff << " efficiency data : " << effdata << std::endl;
+        std::cout << " effdata/effmc  " << effdata/eff << std::endl;
       }
       catch(const std::exception& ex) {
         std::cout << "EXCEPTION!!!" << std::endl;
