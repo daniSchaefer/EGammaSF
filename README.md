@@ -36,4 +36,12 @@ provides simple class to help analysist extract the scale-factors provided by EG
             name=nameOfRootfile.root
         ]
         the name of the root-file that contains the scale factors has to be stated here! every other variable has a default
+        
+### setting the fit-flag:
+    when using the FitFunction=<number> option in the config file the default fit function for the sf is changed
+    functions that are available are the following:
+    0 -> [0]+ atan([1]*pt)
+    1 -> [0] + [1]/x
+    2 -> [0] + [1]/x^2
+    3 -> [0] + [1]/x^[2]
     
