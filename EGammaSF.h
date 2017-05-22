@@ -2,6 +2,7 @@
 #define EGAMMASF_H
 
 #include "TH2F.h"
+#include "TFile.h"
 #include "TF1.h"
 #include "TGraphErrors.h"
 #include "TFitResultPtr.h"
@@ -65,6 +66,7 @@ class my_range_error: public std::exception
      std::string NameSF(){ return sf_;};
      std::string NameFile(){ return filename_;};
      int FitFlag(){ return fit_flag_;};
+     int UncFlag(){ return uncertainty_flag_;};
      
  private:
      void ReadFile(std::ifstream &config, EGammaInput sf) {
@@ -110,6 +112,12 @@ class my_range_error: public std::exception
                  std::size_t n2 = line2.find_first_of("\n");
                  fit_flag_ = atoi(line2.substr(n1+1,n2).c_str());
             }
+             if( line2.find("UncFunc")!=std::string::npos)
+            {
+                 std::size_t n1 = line2.find_first_of("=");
+                 std::size_t n2 = line2.find_first_of("\n");
+                 uncertainty_flag_ = atoi(line2.substr(n1+1,n2).c_str());
+            }
             
                 if( line2.find("]")!=std::string::npos) break;
             }
@@ -124,6 +132,7 @@ class my_range_error: public std::exception
      std::string sf_ = "EGamma_SF2D";
      std::string filename_ ="";
      int fit_flag_ =0;
+     int uncertainty_flag_=0;
      
      std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
@@ -195,7 +204,7 @@ public:
        
     
     float GetSFSmooth(float pT, float superClusterEta);                    // => get smoothed out SF and uncertainty using the functions fitted during construction
-//    float GetUncertaintySmooth(float pT, float superClusterEta);           // => should do something sensible with under/overflow
+    float GetUncertaintySmooth(float pT, float superClusterEta);           // => should do something sensible with under/overflow
 //                                                                              // => throw error for uninitialized class
 //    
 // //============================================
@@ -237,6 +246,7 @@ void SetPtBin( float pT);
 // //===============================================
 // // return a fit function according to fit_flag_ 
  TF1 GetFitFunction(int etaBin);
+ TF1 SetSFFunction(int etaBin);
 // //===============================================
 // 
 // 
@@ -250,7 +260,7 @@ void SetPtBin( float pT);
  //===============================================
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
  void DrawSF(TGraphErrors g, TF1 f, float eta);
- void DrawSF(TGraphErrors g, float eta);
+ void DrawSF(TGraph g, float eta);
  //===============================================
  
  
@@ -267,6 +277,7 @@ void PrintDebug(std::string stuff)
 //               private variables
 //===============================================
 //===============================================
+        std::string file_;
         bool debug_flag_ =0; // if set to 1 print/draw additional information
         int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
         int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
@@ -288,8 +299,10 @@ void PrintDebug(std::string stuff)
         TH2F efficiency_data_;          // safe 2d histo containing efficiency in data
         
         std::vector<TF1> smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
-        //std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
- 
+        std::vector<TGraph> num_smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
+        std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
+        float minsfunc_ =0;
+        float maxsfunc_= 0;
 //===============================================
 //===============================================
 

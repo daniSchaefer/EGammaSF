@@ -25,14 +25,15 @@ int main(int argc, char** argv)
 {
      try{
         // initialize scale factor helper : 
-        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronTight,1);
+        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::photonLoose,1);
          
         for(int i=0;i<10;i+=1)
         {
         float unc = bla->GetUncertainty(30+i*10,2.1);
         float sf = bla->GetSF(30.0+i*10,2.1);
         float sf_smooth = bla->GetSFSmooth(30+i*10., 2.1);
-        std::cout << "sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << std::endl;
+        float un_rel = bla->GetUncertaintySmooth(30+i*10., 2.1);
+        std::cout << "sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << " unc smoothed : " << un_rel*sf_smooth << std::endl;
         }
         
         float eff = bla->GetEfficiency(600,-1.2,0);

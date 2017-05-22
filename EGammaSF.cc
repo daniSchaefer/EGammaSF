@@ -3,6 +3,7 @@
 
 #include "TH1F.h"
 #include "TGraphErrors.h"
+#include "TGraphSmooth.h"
 #include "TPaveText.h"
 #include "TMath.h"
 #include "TH2D.h"
@@ -21,13 +22,16 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    ConfigParser* parser = new ConfigParser("config.txt",what);
    std::string filename = parser->NameFile();
         PrintDebug("opening file "+filename);
-   TFile file(filename.c_str(),"READ");
+        std::string openAs = "READ";
+        if(debug_flag_) openAs = "UPDATE";
+   TFile file(filename.c_str(),openAs.c_str());
     if (file.IsZombie()) throw file_not_found();
-        std::cout << &file << std::endl;
+   file_ = filename;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));          
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
    fit_flag_ = parser->FitFlag();
+   uncertainty_flag_ = parser->UncFlag();
         PrintDebug(Form("initialising histogram names using : %s, %s, %s", parser->NameSF().c_str() ,parser->NameEffMC().c_str(), parser->NameEffData().c_str()));
         PrintDebug(Form("fitting flag set to : %i",fit_flag_));
    //set fit range:
@@ -40,25 +44,54 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    c->SaveAs("histo.pdf");
         PrintDebug("===============================================================");
         PrintDebug("starting fit for scale factors ");
-        PrintDebug("===============================================================");
+        PrintDebug("===============================================================");    
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
-   {
+   {    
+        TF1 fit;
         TGraphErrors g = GetTGraph(i);
-        TF1 fit = FitScaleFactor(g,i);
-        smooth_sf_.push_back(fit);
-        PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
-        DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+        if(debug_flag_){
+            if(fit_flag_!=100)
+            {
+                fit = FitScaleFactor(g,i);
+                fit.SetName(Form("smooth_sf_etabin%i",i));
+                PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
+                DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+                fit.Write();
+                smooth_sf_.push_back(fit);
+            }
+            else
+            {
+                TGraphSmooth *gtmp = new TGraphSmooth();    
+                TGraph* gs = gtmp->SmoothLowess(&g,"",0.7);//gtmp->Approx(&g);
+                DrawSF(*gs,egm2d_.GetXaxis() -> GetBinCenter(i));
+                num_smooth_sf_.push_back(*gs);
+            }
+        }
+        else{
+            fit = SetSFFunction(i);
+            smooth_sf_.push_back(fit);
+        }
    }
    for(int i=1;i<egm2d_.GetXaxis()->GetNbins()+1;i++)
    {
+      TF1 fitunc;
       TGraphErrors gunc = GetTGraph(i,1);
-      TF1 fitunc = GetUncertaintyFunction(i);
-      fitunc.SetParameter(2,gunc.GetMinimum());
-      TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
-      //fitres->Print();
-      DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
-       
+      //if(debug_flag_){
+        fitunc = GetUncertaintyFunction(i);
+        fitunc.SetName(Form("smooth_unc_etabin%i",i));
+        if (uncertainty_flag_ ==0) fitunc.SetParLimits(2,minsfunc_,10);
+        std::cout << " value to converge to : "<< maxsfunc_ << std::endl;
+        if (uncertainty_flag_ ==1) fitunc.SetParLimits(0,maxsfunc_,1.2*maxsfunc_);
+        TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
+        fitunc.Write();
+      //}
+      //else{
+        //fitunc = SmoothUncertainty(TGraphErrors g_eta);  
+      //} 
+      smooth_unc_.push_back(fitunc);
+      //DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
    }
+   std::cout << smooth_unc_.size() << std::endl;
  }
  
  
@@ -85,10 +118,43 @@ float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
 float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
 {
    SetEtaBin(superClusterEta);
-   if(pT > rangeup_) return smooth_sf_.at(etaBin_-1).Eval(rangeup_);
-   if(pT < rangelow_) return smooth_sf_.at(etaBin_-1).Eval(rangelow_);
-   float sf = smooth_sf_.at(etaBin_-1).Eval(pT);
-   return sf;    
+   float sf;
+   if( smooth_sf_.size() > 0)
+   {
+        if(pT > rangeup_) return smooth_sf_.at(etaBin_-1).Eval(rangeup_);
+        if(pT < rangelow_) return smooth_sf_.at(etaBin_-1).Eval(rangelow_);
+        sf = smooth_sf_.at(etaBin_-1).Eval(pT);
+        return sf; 
+   }
+   if (num_smooth_sf_.size() >0)
+   {
+        if(pT > rangeup_) return num_smooth_sf_.at(etaBin_-1).Eval(rangeup_);
+        if(pT < rangelow_) return num_smooth_sf_.at(etaBin_-1).Eval(rangelow_);
+        sf = num_smooth_sf_.at(etaBin_-1).Eval(pT);
+        return sf; 
+   }
+   throw my_range_error("smoothed scale factor functions not correctly loaded");   
+}
+
+TF1 ScaleFactorHelper::SetSFFunction(int etaBin)
+{
+    TFile file(file_.c_str(),"READ");
+    if (file.IsZombie()) throw file_not_found();
+    TF1 func = *dynamic_cast<TF1*>(file.Get(Form("smooth_sf_etabin%i",etaBin)));
+    if( func.IsZombie()) throw my_range_error("smoothed sf fit function could not be opened");
+    file.Close();
+    return func;
+}
+
+float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
+{
+  SetEtaBin(superClusterEta);
+  float rangeup = rangeup_;
+  if(uncertainty_flag_ ==0) rangeup = 150;
+  if(pT > rangeup) return smooth_unc_.at(etaBin_-1).Eval(rangeup);
+  if(pT < rangelow_) return smooth_unc_.at(etaBin_-1).Eval(rangelow_);
+  float unc_rel = smooth_unc_.at(etaBin_-1).Eval(pT);
+  return unc_rel;  
 }
 
 
@@ -143,6 +209,8 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
     int max = egm2d_.GetYaxis()-> GetNbins();
     float eta = egm2d_.GetXaxis()-> GetBinCenter(etaBin);
     TGraphErrors *g = new TGraphErrors(max);
+    float findmin=10000;
+    float findmax=-100000;
     
     for(int i=1; i< max+1;i++)
     {
@@ -151,6 +219,8 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         float pt_unc = egm2d_.GetYaxis() -> GetBinWidth(i) /2.;
         //std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
         float sf_unc = GetUncertainty(pt,eta);
+        if (sf_unc/sf < findmin) findmin =sf_unc/sf;
+        if (sf_unc/sf > findmax) findmax =sf_unc/sf;
         if (forUncertainty)
         {
            g->SetPoint(i-1,pt,sf_unc/sf);
@@ -162,6 +232,8 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         g->SetPointError(i-1,pt_unc,sf_unc);
         }
     }
+    minsfunc_=findmin;
+    maxsfunc_=findmax;
     return *g;
 }
 
@@ -172,6 +244,8 @@ TF1 ScaleFactorHelper::FitScaleFactor(TGraphErrors g, int etaBin)
   res->Print();  
   return fit;  
 }
+
+
 
 
 void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
@@ -210,7 +284,7 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
 }
 
 
-void ScaleFactorHelper::DrawSF(TGraphErrors g, float eta)
+void ScaleFactorHelper::DrawSF(TGraph g, float eta)
 {
     TCanvas* cg = new TCanvas();
     g.GetXaxis()->SetTitle("pT (GeV)");
@@ -295,10 +369,15 @@ TF1 ScaleFactorHelper::GetUncertaintyFunction(int etaBin)
      TF1* f;
      if(uncertainty_flag_==0)
      {
-         f = new TF1("f","[2]+ [1]*(x-[0])^(2)",rangelow_,150.);
+         f = new TF1("func","[2]+ [1]*(x-[0])^(2)",rangelow_,150.);
          f->SetParLimits(0,20.,150.);
          return *f;
-     }     
+     }
+     if(uncertainty_flag_==1)
+     {
+         f = new TF1("func","[0]+ ([1]/x^2)",rangelow_,rangeup_);
+         return *f;
+     }  
      
      throw my_range_error("wrong fitting flag used in uncertainty smoothing");
  }
