@@ -44,4 +44,9 @@ provides simple class to help analysist extract the scale-factors provided by EG
     1 -> [0] + [1]/x
     2 -> [0] + [1]/x^2
     3 -> [0] + [1]/x^[2]
+    11-> [0]
+    
+    added option to use numerical smoothing instead of fitting a function using:
+    FitFunction=100
+    
     
