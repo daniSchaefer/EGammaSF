@@ -23,14 +23,17 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    std::string filename = parser->NameFile();
         PrintDebug("opening file "+filename);
         std::string openAs = "READ";
-        if(debug_flag_) openAs = "UPDATE";
    TFile file(filename.c_str(),openAs.c_str());
     if (file.IsZombie()) throw file_not_found();
-   file_ = filename;
+   std::string outfilename = "OUT"+filename;
+   file_ = outfilename;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));          
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
    fit_flag_ = parser->FitFlag();
+   egm2d_.SetName(parser->NameSF().c_str());
+   efficiency_data_.SetName(parser->NameEffData().c_str());
+   efficiency_mc_.SetName(parser->NameEffMC().c_str());
    uncertainty_flag_ = parser->UncFlag();
         PrintDebug(Form("initialising histogram names using : %s, %s, %s", parser->NameSF().c_str() ,parser->NameEffMC().c_str(), parser->NameEffData().c_str()));
         PrintDebug(Form("fitting flag set to : %i",fit_flag_));
@@ -42,13 +45,37 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    TCanvas* c = new TCanvas();
    egm2d_.Draw("COLZ");
    c->SaveAs("histo.pdf");
+   file.Close();
+   if(debug_flag_) openAs = "RECREATE";
+   TFile out(outfilename.c_str(),openAs.c_str());
+   if (input_ != EGammaInput::electronRecoSF){
+        InitializeSF();
+        InitializeUnc();
+   }
+   out.Close();
+ }
+ 
+ 
+ 
+ 
+ 
+ScaleFactorHelper::~ScaleFactorHelper(void)
+ {
+     
+ }
+ 
+
+ void ScaleFactorHelper::InitializeSF()
+ {
         PrintDebug("===============================================================");
         PrintDebug("starting fit for scale factors ");
-        PrintDebug("===============================================================");    
+        PrintDebug("==============================================================="); 
+        if(debug_flag_) {egm2d_.Write(); efficiency_data_.Write(); efficiency_mc_.Write();}
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
    {    
         TF1 fit;
         TGraphErrors g = GetTGraph(i);
+        
         if(debug_flag_){
             if(fit_flag_!=100)
             {
@@ -61,17 +88,56 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
             }
             else
             {
-                TGraphSmooth *gtmp = new TGraphSmooth();    
-                TGraph* gs = gtmp->SmoothLowess(&g,"",0.7);//gtmp->Approx(&g);
-                DrawSF(*gs,egm2d_.GetXaxis() -> GetBinCenter(i));
-                num_smooth_sf_.push_back(*gs);
+//                 TGraphSmooth *gtmp = new TGraphSmooth();    
+//                 TGraph* gs = gtmp->SmoothLowess(&g,"",0.7);//gtmp->Approx(&g);
+//                 DrawSF(*gs,egm2d_.GetXaxis() -> GetBinCenter(i));
+//                 num_smooth_sf_.push_back(*gs);
+//             
+//                 testhisto->Smooth();
+//                 TCanvas* csmooth = new TCanvas();
+//                 testhisto->Draw("HIST");
+//                 csmooth->SaveAs(Form("test_smoothingfunc_histo_eta%i.pdf",i));
+                TH1F h = GetHisto(i);
+                h.Smooth();
+                DrawSF(g,h,egm2d_.GetXaxis() -> GetBinCenter(i));
+                h.SetName(Form("smooth_sf_etabin%i",i));
+                h.Write();
+                num_smooth_sf_.push_back(h);
+                
             }
         }
         else{
-            fit = SetSFFunction(i);
-            smooth_sf_.push_back(fit);
+            if(fit_flag_!=100){
+                fit = SetSFFunction(i);
+                smooth_sf_.push_back(fit);
+            }
+            else {
+              num_smooth_sf_.push_back(SetSFHisto(i));   
+            }
         }
-   }
+   } 
+ }
+ 
+ TH1F ScaleFactorHelper::GetHisto(int etaBin)
+ {
+   TH1F* testhisto = new TH1F("test","test",maxBinpt_,egm2d_.GetYaxis()->GetXbins()->GetArray());
+        for(int j=0;j<maxBinpt_+1;j++)
+        {
+         float pt = egm2d_.GetYaxis() -> GetBinCenter(j);
+         float eta = egm2d_.GetXaxis() -> GetBinCenter(etaBin);
+         testhisto->Fill(pt, GetSF(pt,eta));
+         testhisto->SetBinError(j,GetUncertainty(pt,eta));
+        }   
+     
+   return *testhisto;  
+ }
+ 
+ 
+ void ScaleFactorHelper::InitializeUnc()
+ {
+        PrintDebug("===============================================================");
+        PrintDebug("starting fit for scale factor uncertainties ");
+        PrintDebug("===============================================================");      
    for(int i=1;i<egm2d_.GetXaxis()->GetNbins()+1;i++)
    {
       TF1 fitunc;
@@ -91,16 +157,14 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
       smooth_unc_.push_back(fitunc);
       //DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
    }
-   std::cout << smooth_unc_.size() << std::endl;
- }
- 
- 
-ScaleFactorHelper::~ScaleFactorHelper(void)
- {
+   std::cout << smooth_unc_.size() << std::endl;  
      
  }
  
-float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
+ 
+ 
+ 
+ float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
 {
   float sf;
   if( pT!=input_pt_ or superClusterEta != input_eta_)
@@ -119,6 +183,7 @@ float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
 {
    SetEtaBin(superClusterEta);
    float sf;
+   if(input_ == EGammaInput::electronRecoSF) return GetSF(pT,superClusterEta);
    if( smooth_sf_.size() > 0)
    {
         if(pT > rangeup_) return smooth_sf_.at(etaBin_-1).Eval(rangeup_);
@@ -128,9 +193,10 @@ float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
    }
    if (num_smooth_sf_.size() >0)
    {
-        if(pT > rangeup_) return num_smooth_sf_.at(etaBin_-1).Eval(rangeup_);
-        if(pT < rangelow_) return num_smooth_sf_.at(etaBin_-1).Eval(rangelow_);
-        sf = num_smooth_sf_.at(etaBin_-1).Eval(pT);
+        if(pT > rangeup_) return num_smooth_sf_.at(etaBin_-1).GetBinContent(maxBinpt_);
+        if(pT < rangelow_) return num_smooth_sf_.at(etaBin_-1).GetBinContent(1);
+        SetPtBin(pT);
+        sf = num_smooth_sf_.at(etaBin_-1).GetBinContent(ptBin_);
         return sf; 
    }
    throw my_range_error("smoothed scale factor functions not correctly loaded");   
@@ -146,9 +212,21 @@ TF1 ScaleFactorHelper::SetSFFunction(int etaBin)
     return func;
 }
 
+TH1F ScaleFactorHelper::SetSFHisto(int etaBin)
+{
+    TFile file(file_.c_str(),"READ");
+    if (file.IsZombie()) throw file_not_found();
+    TH1F func = *dynamic_cast<TH1F*>(file.Get(Form("smooth_sf_etabin%i",etaBin)));
+    if( func.IsZombie()) throw my_range_error("smoothed sf histogram could not be opened");
+    file.Close();
+    return func;
+}
+
+
 float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
 {
   SetEtaBin(superClusterEta);
+  if(input_ == EGammaInput::electronRecoSF) return GetUncertainty(pT,superClusterEta);
   float rangeup = rangeup_;
   if(uncertainty_flag_ ==0) rangeup = 150;
   if(pT > rangeup) return smooth_unc_.at(etaBin_-1).Eval(rangeup);
@@ -201,6 +279,7 @@ void ScaleFactorHelper::SetPtBin(float pT)
       ptBin_=1;
       /*throw my_range_error(err);*/}
   if(ptBin_ >= maxBinpt_ and maxBinpt_ > 1 ) ptBin_ = maxBinpt_-1;  // last pt bin is only used as control but the scale-factor here should not be used because of limited statistics
+  if(maxBinpt_ ==1) ptBin_ = 1; // this histogram has only one bin, the setting from above does not apply here!
 }
 
 
@@ -281,6 +360,35 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
     cg->SaveAs(Form("graph_%.1f_fitfunction%i.pdf",eta,fit_flag_));  
       
     
+}
+
+void ScaleFactorHelper::DrawSF(TGraphErrors g, TH1F f, float eta)
+{
+    TCanvas* cg = new TCanvas();
+    g.GetXaxis()->SetTitle("pT (GeV)");
+    g.GetYaxis()->SetTitle("scale factor");
+    g.SetLineColor(kBlue);
+    g.SetLineWidth(2);
+    g.SetMarkerColor(kBlack);
+    g.SetMarkerStyle(8);
+    f.SetLineColor(kRed);
+    f.SetLineWidth(2);
+    //g.SetMaximum(1.1);
+    //g.SetMinimum(0.8);
+    g.Draw("ALP");
+    f.Draw("same");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    addInfo->AddText(Form("#eta =  %.1f ", eta));
+    addInfo->Draw("same");
+    cg->SaveAs(Form("graph_%.1f_fitfunction%i.pdf",eta,fit_flag_));  
+      
 }
 
 

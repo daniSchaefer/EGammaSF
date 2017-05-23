@@ -247,6 +247,7 @@ void SetPtBin( float pT);
 // // return a fit function according to fit_flag_ 
  TF1 GetFitFunction(int etaBin);
  TF1 SetSFFunction(int etaBin);
+ TH1F SetSFHisto(int etaBin);
 // //===============================================
 // 
 // 
@@ -261,8 +262,14 @@ void SetPtBin( float pT);
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
  void DrawSF(TGraphErrors g, TF1 f, float eta);
  void DrawSF(TGraph g, float eta);
+ void DrawSF(TGraphErrors g, TH1F f, float eta);
  //===============================================
  
+
+ void InitializeSF(); 
+ void InitializeUnc();
+ 
+ TH1F GetHisto(int etaBin);
  
 void PrintDebug(std::string stuff)
 {
@@ -299,7 +306,7 @@ void PrintDebug(std::string stuff)
         TH2F efficiency_data_;          // safe 2d histo containing efficiency in data
         
         std::vector<TF1> smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
-        std::vector<TGraph> num_smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
+        std::vector<TH1F> num_smooth_sf_; // safe numerival smoothed scale factors for each eta bin 
         std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
         float minsfunc_ =0;
         float maxsfunc_= 0;
