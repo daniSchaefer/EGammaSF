@@ -31,7 +31,21 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
    fit_flag_ = parser->FitFlag();
+   local_flag_ = parser->LocalFitFlag();
    egm2d_.SetName(parser->NameSF().c_str());
+   maxBineta_ = egm2d_.GetXaxis()->GetNbins();
+   maxBinpt_  = egm2d_.GetYaxis()->GetNbins();
+   for (int e=1;e<= maxBineta_;e++)
+   {
+    if(local_flag_.find(e)!=  local_flag_.end()) continue;
+    //std::cout << " insert " << e << " " << fit_flag_ << std::endl;
+    local_flag_.insert(std::pair<int, int>(e,fit_flag_));
+   }
+//    for (int e=1;e<= maxBineta_;e++)
+//    {
+//     std::cout << local_flag_.at(e) << std::endl;
+//    }
+   
    efficiency_data_.SetName(parser->NameEffData().c_str());
    efficiency_mc_.SetName(parser->NameEffMC().c_str());
    uncertainty_flag_ = parser->UncFlag();
@@ -64,6 +78,10 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
      
  }
  
+ void ScaleFactorHelper::SetFitFlag(int etaBin)
+ {
+   fit_flag_ = local_flag_.at(etaBin);   
+ }
 
  void ScaleFactorHelper::InitializeSF()
  {
@@ -73,7 +91,9 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
         if(debug_flag_) {egm2d_.Write(); efficiency_data_.Write(); efficiency_mc_.Write();}
    for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
    {    
+        SetFitFlag(i);
         TF1 fit;
+        TH1F h;
         TGraphErrors g = GetTGraph(i);
         
         if(debug_flag_){
@@ -85,6 +105,7 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
                 DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
                 fit.Write();
                 smooth_sf_.push_back(fit);
+                num_smooth_sf_.push_back(h);
             }
             else
             {
@@ -97,12 +118,13 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
 //                 TCanvas* csmooth = new TCanvas();
 //                 testhisto->Draw("HIST");
 //                 csmooth->SaveAs(Form("test_smoothingfunc_histo_eta%i.pdf",i));
-                TH1F h = GetHisto(i);
+                h = GetHisto(i);
                 h.Smooth();
                 DrawSF(g,h,egm2d_.GetXaxis() -> GetBinCenter(i));
                 h.SetName(Form("smooth_sf_etabin%i",i));
                 h.Write();
                 num_smooth_sf_.push_back(h);
+                smooth_sf_.push_back(fit);
                 
             }
         }
@@ -110,9 +132,11 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
             if(fit_flag_!=100){
                 fit = SetSFFunction(i);
                 smooth_sf_.push_back(fit);
+                num_smooth_sf_.push_back(h);
             }
             else {
-              num_smooth_sf_.push_back(SetSFHisto(i));   
+              num_smooth_sf_.push_back(SetSFHisto(i));
+              smooth_sf_.push_back(fit);
             }
         }
    } 
@@ -167,11 +191,8 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
  float ScaleFactorHelper::GetSF(float pT, float superClusterEta)
 {
   float sf;
-  if( pT!=input_pt_ or superClusterEta != input_eta_)
-  {
-    SetEtaBin(superClusterEta);
-    SetPtBin(pT);
-  }
+  SetEtaBin(superClusterEta);
+  SetPtBin(pT);
   sf = egm2d_.GetBinContent(etaBin_,ptBin_);
   
   //std::cout << "pt : " <<pT << " pt bin : " << ptBin_ << " eta: " << superClusterEta << " eta bin : " << etaBin_ << std::endl;
@@ -182,16 +203,17 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
 float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
 {
    SetEtaBin(superClusterEta);
+   SetFitFlag(etaBin_);
    float sf;
    if(input_ == EGammaInput::electronRecoSF) return GetSF(pT,superClusterEta);
-   if( smooth_sf_.size() > 0)
+   if( fit_flag_ !=100)
    {
         if(pT > rangeup_) return smooth_sf_.at(etaBin_-1).Eval(rangeup_);
         if(pT < rangelow_) return smooth_sf_.at(etaBin_-1).Eval(rangelow_);
         sf = smooth_sf_.at(etaBin_-1).Eval(pT);
         return sf; 
    }
-   if (num_smooth_sf_.size() >0)
+   if (fit_flag_ ==100)
    {
         if(pT > rangeup_) return num_smooth_sf_.at(etaBin_-1).GetBinContent(maxBinpt_);
         if(pT < rangelow_) return num_smooth_sf_.at(etaBin_-1).GetBinContent(1);
@@ -239,12 +261,9 @@ float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
 float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
 {
  float sf_unc;
-  if( pT!=input_pt_ or superClusterEta != input_eta_)
-  {
-    SetEtaBin(superClusterEta);
-    SetPtBin(pT);
-  }
-  sf_unc = egm2d_.GetBinError(etaBin_,ptBin_);
+ SetEtaBin(superClusterEta);
+ SetPtBin(pT);
+ sf_unc = egm2d_.GetBinError(etaBin_,ptBin_);
   // add additional uncertainty to electron reconstruction scale-factor:
   if(input_ == EGammaInput::electronRecoSF)
   {
@@ -262,15 +281,18 @@ float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
 
 void ScaleFactorHelper::SetEtaBin(float superClusterEta)
 {
+  if (superClusterEta != input_eta_){  
   input_eta_ = superClusterEta;  
   etaBin_ = egm2d_.GetXaxis() -> FindBin(superClusterEta);
   maxBineta_ = egm2d_.GetXaxis() -> GetNbins();
   if (etaBin_==0 or etaBin_==maxBineta_+1) 
   {std::string err = "tried to evaluate scale factor for |eta| >"; err.append(std::to_string(TMath::Abs(egm2d_.GetXaxis()->GetBinLowEdge(1)))); throw my_range_error(err);}
+  }
 }
 
 void ScaleFactorHelper::SetPtBin(float pT)
 {
+  if (pT != input_pt_){  
   input_pt_ = pT;  
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);
   maxBinpt_ = egm2d_.GetYaxis() -> GetNbins();
@@ -280,6 +302,7 @@ void ScaleFactorHelper::SetPtBin(float pT)
       /*throw my_range_error(err);*/}
   if(ptBin_ >= maxBinpt_ and maxBinpt_ > 1 ) ptBin_ = maxBinpt_-1;  // last pt bin is only used as control but the scale-factor here should not be used because of limited statistics
   if(maxBinpt_ ==1) ptBin_ = 1; // this histogram has only one bin, the setting from above does not apply here!
+  }
 }
 
 

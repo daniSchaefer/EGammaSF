@@ -9,6 +9,11 @@
     EffMC=EGamma_EffMC2D
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
+    UncFunction=1
+    FitFunction=100
+        LocalFitFunction<8<10=1
+        LocalFitFunction<1<3=1
+        LocalFitFunction<4<4=0
 ]
 [electronLoose
     name=egammaEffi_EGM2D_electron_cutbased_looseID.root
@@ -21,5 +26,6 @@
     EffMC=EGamma_EffMC2D
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
-    FitFunction=3
+    FitFunction=11
+    UncFunction=100
 ]
