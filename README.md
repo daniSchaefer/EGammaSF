@@ -49,4 +49,10 @@ provides simple class to help analysist extract the scale-factors provided by EG
     added option to use numerical smoothing instead of fitting a function using:
     FitFunction=100
     
+    different fit functions/ smoothing can be used in different eta regions:
+    
+          using : LocalFitFunction<1<3=1
+          this will use a 1/x fit for the 1,2nd and third bin in eta
+          all bins not covered by this are fitted with the function specified in FitFunction or the default 0 if no fit function is specified
+          an arbitrary amount of local fit functions can be used
     
