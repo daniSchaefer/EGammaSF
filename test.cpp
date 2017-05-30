@@ -11,6 +11,7 @@
 #include "TH2D.h"
 #include "TF1.h"
 #include "EGammaSF.h"
+#include "TRandom.h"
 //#include "/cvmfs/cms.cern.ch/slc6_amd64_gcc491/lcg/root/6.02.00-odfocd5/include/TTreeReaderValueBase.h"
 #include <iostream>
 #include <iomanip>
@@ -25,15 +26,17 @@ int main(int argc, char** argv)
 {
      try{
         // initialize scale factor helper : 
-        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::photonLoose,1);
+        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronTight,1);
          
-        for(int i=0;i<10;i+=1)
+        TRandom *r = new TRandom();
+        for(int i=0;i<80;i+=1)
         {
-        float unc = bla->GetUncertainty(30+i*10,2.1);
-        float sf = bla->GetSF(30.0+i*10,2.1);
-        float sf_smooth = bla->GetSFSmooth(30+i*10., 2.1);
-        float un_rel = bla->GetUncertaintySmooth(30+i*10., 2.1);
-        std::cout << "sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << " unc smoothed : " << un_rel*sf_smooth << std::endl;
+        float pt = r->Gaus(130,80);
+        float unc = bla->GetUncertainty(pt,2.1);
+        float sf = bla->GetSF(pt,2.1);
+        float sf_smooth = bla->GetSFSmooth(pt, 2.1);
+        float un_rel = bla->GetUncertaintySmooth(pt, 2.1);
+        std::cout <<"pt : " << pt << "  sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << " unc smoothed : " << un_rel*sf_smooth << std::endl;
         }
         
         float eff = bla->GetEfficiency(600,-1.2,0);

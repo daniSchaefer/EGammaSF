@@ -68,6 +68,7 @@ class my_range_error: public std::exception
      int FitFlag(){ return fit_flag_;};
      int UncFlag(){ return uncertainty_flag_;};
      std::map<int, int> LocalFitFlag(){return local_flag_;}
+     std::map<int, int> LocalUncFlag(){return local_unc_flag_;}
      
  private:
      void ReadFile(std::ifstream &config, EGammaInput sf) {
@@ -119,7 +120,7 @@ class my_range_error: public std::exception
                  std::size_t n2 = line2.find_first_of("\n");
                  uncertainty_flag_ = atoi(line2.substr(n1+1,n2).c_str());
             }
-            if( line2.find("Local")!=std::string::npos)
+            if( line2.find("LocalFitFunction")!=std::string::npos)
             {
                  std::size_t n1 = line2.find_first_of("=");
                  std::size_t n2 = line2.find_first_of("\n");
@@ -132,6 +133,22 @@ class my_range_error: public std::exception
                  for( int i=bin_low;i<=bin_up;i++)
                  {
                     local_flag_.insert ( std::pair<int,int>( i,flag ));
+                    //std::cout << "bin " << i << " flag " << flag<< std::endl;
+                 }
+            }
+            if( line2.find("LocalUncFunction")!=std::string::npos)
+            {
+                 std::size_t n1 = line2.find_first_of("=");
+                 std::size_t n2 = line2.find_first_of("\n");
+                 std::size_t ns1 = line2.find_first_of("<");
+                 std::size_t ns2 = line2.find_last_of("<");
+                 int bin_low = atoi(line2.substr(ns1+1,ns2).c_str());
+                 int bin_up =  atoi(line2.substr(ns2+1,n1).c_str());
+                 int flag = atoi(line2.substr(n1+1,n2).c_str());
+                 //std::cout << bin_low << " "<< bin_up << std::endl;
+                 for( int i=bin_low;i<=bin_up;i++)
+                 {
+                    local_unc_flag_.insert ( std::pair<int,int>( i,flag ));
                     //std::cout << "bin " << i << " flag " << flag<< std::endl;
                  }
             }
@@ -151,6 +168,7 @@ class my_range_error: public std::exception
      int fit_flag_ =0;
      int uncertainty_flag_=0;
      std::map<int,int> local_flag_;
+     std::map<int,int> local_unc_flag_;
      
      std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
@@ -308,7 +326,7 @@ void SetFitFlag(int etaBin);
         int fit_flag_ = 0;    // use different functions for the fit of SF (smoothing)
         std::map<int,int> local_flag_;
         int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
-        
+        std::map<int,int> local_unc_flag_;
 
         EGammaInput input_;
         int etaBin_ = -99;                 // safe bin number of etaBin currently used
@@ -330,6 +348,7 @@ void SetFitFlag(int etaBin);
         std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
         float minsfunc_ =0;
         float maxsfunc_= 0;
+        float maxUnc_=0;
 //===============================================
 //===============================================
 

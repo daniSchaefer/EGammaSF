@@ -32,20 +32,16 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
    fit_flag_ = parser->FitFlag();
    local_flag_ = parser->LocalFitFlag();
+   local_unc_flag_ = parser->LocalUncFlag();
    egm2d_.SetName(parser->NameSF().c_str());
    maxBineta_ = egm2d_.GetXaxis()->GetNbins();
    maxBinpt_  = egm2d_.GetYaxis()->GetNbins();
    for (int e=1;e<= maxBineta_;e++)
    {
-    if(local_flag_.find(e)!=  local_flag_.end()) continue;
-    //std::cout << " insert " << e << " " << fit_flag_ << std::endl;
-    local_flag_.insert(std::pair<int, int>(e,fit_flag_));
+    if(local_flag_.find(e)==  local_flag_.end()) local_flag_.insert(std::pair<int, int>(e,fit_flag_));
+    if(local_unc_flag_.find(e)==  local_unc_flag_.end()) local_unc_flag_.insert(std::pair<int, int>(e,uncertainty_flag_));
    }
-//    for (int e=1;e<= maxBineta_;e++)
-//    {
-//     std::cout << local_flag_.at(e) << std::endl;
-//    }
-   
+
    efficiency_data_.SetName(parser->NameEffData().c_str());
    efficiency_mc_.SetName(parser->NameEffMC().c_str());
    uncertainty_flag_ = parser->UncFlag();
@@ -93,10 +89,9 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
    {    
         SetFitFlag(i);
         TF1 fit;
-        TH1F h;
-        TGraphErrors g = GetTGraph(i);
-        
+        TH1F h;        
         if(debug_flag_){
+            TGraphErrors g = GetTGraph(i);
             if(fit_flag_!=100)
             {
                 fit = FitScaleFactor(g,i);
@@ -165,22 +160,26 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
    for(int i=1;i<egm2d_.GetXaxis()->GetNbins()+1;i++)
    {
       TF1 fitunc;
+      if(debug_flag_){
       TGraphErrors gunc = GetTGraph(i,1);
-      //if(debug_flag_){
-        fitunc = GetUncertaintyFunction(i);
-        fitunc.SetName(Form("smooth_unc_etabin%i",i));
-        if (uncertainty_flag_ ==0) fitunc.SetParLimits(2,minsfunc_,10);
-        std::cout << " value to converge to : "<< maxsfunc_ << std::endl;
-        if (uncertainty_flag_ ==1) fitunc.SetParLimits(0,maxsfunc_,1.2*maxsfunc_);
-        TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
-        fitunc.Write();
-      //}
-      //else{
-        //fitunc = SmoothUncertainty(TGraphErrors g_eta);  
-      //} 
-      smooth_unc_.push_back(fitunc);
-      //DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
-   }
+      if (uncertainty_flag_ !=100){
+            fitunc = GetUncertaintyFunction(i);
+            fitunc.SetName(Form("smooth_unc_etabin%i",i));
+            if (uncertainty_flag_ ==0) fitunc.SetParLimits(2,minsfunc_,10);
+            std::cout << " value to converge to : "<< maxsfunc_ << std::endl;
+            if (uncertainty_flag_ ==1) fitunc.SetParLimits(0,maxsfunc_,1.2*maxsfunc_);
+            TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
+            fitunc.Write();
+        //else{
+            //fitunc = SmoothUncertainty(TGraphErrors g_eta);  
+        //} 
+      }
+        smooth_unc_.push_back(fitunc);
+        DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
+      }
+          
+    }
+   
    std::cout << smooth_unc_.size() << std::endl;  
      
  }
@@ -194,9 +193,6 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
   SetEtaBin(superClusterEta);
   SetPtBin(pT);
   sf = egm2d_.GetBinContent(etaBin_,ptBin_);
-  
-  //std::cout << "pt : " <<pT << " pt bin : " << ptBin_ << " eta: " << superClusterEta << " eta bin : " << etaBin_ << std::endl;
-  
   return sf;  
 }
 
@@ -248,6 +244,8 @@ TH1F ScaleFactorHelper::SetSFHisto(int etaBin)
 float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
 {
   SetEtaBin(superClusterEta);
+  SetPtBin(pT);
+  if(uncertainty_flag_==100){ std::cout << "warning : scale factor must be numerically smoothed in order to use this uncertainty option" << std::endl; return num_smooth_sf_.at(etaBin_).GetBinError(ptBin_);} 
   if(input_ == EGammaInput::electronRecoSF) return GetUncertainty(pT,superClusterEta);
   float rangeup = rangeup_;
   if(uncertainty_flag_ ==0) rangeup = 150;
@@ -501,7 +499,7 @@ TF1 ScaleFactorHelper::GetUncertaintyFunction(int etaBin)
      if(uncertainty_flag_==0)
      {
          f = new TF1("func","[2]+ [1]*(x-[0])^(2)",rangelow_,150.);
-         f->SetParLimits(0,20.,150.);
+         f->SetParLimits(0,20.,100.);
          return *f;
      }
      if(uncertainty_flag_==1)
