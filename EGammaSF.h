@@ -2,6 +2,7 @@
 #define EGAMMASF_H
 
 #include "TH2F.h"
+#include "TCanvas.h"
 #include "TFile.h"
 #include "TF1.h"
 #include "TGraphErrors.h"
@@ -47,7 +48,7 @@ class my_range_error: public std::exception
   }
 };
 
-
+std::string GetString(EGammaInput sf);
 
 // small parser class to include the config file config.txt
 // this file only has to be changed if the filenames of the input root-files or the contained histogram names need to be changed
@@ -157,7 +158,8 @@ class my_range_error: public std::exception
             }
             
         }    
-        }   
+        } 
+       // std::cout << uncertainty_flag_ << std::endl;
       //std::cout << filename_ << " " << effmc_ << " "<< effdata_ << " "<< sf_ << " "<< cat << std::endl;   
      };
      
@@ -169,31 +171,8 @@ class my_range_error: public std::exception
      int uncertainty_flag_=0;
      std::map<int,int> local_flag_;
      std::map<int,int> local_unc_flag_;
-     
-     std::string GetString(EGammaInput sf){
-       if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
-       if (sf == EGammaInput::electronLoose) return "electronLoose";
-       if (sf == EGammaInput::electronTight) return "electronTight";
-       if (sf == EGammaInput::electronMedium) return "electronMedium";
-       if (sf == EGammaInput::electronMVA80) return "electronMVA80";
-       if (sf == EGammaInput::electronMVA90) return "electronMVA90";
-       
-       if (sf == EGammaInput::photonLoose) return "photonLoose";
-       if (sf == EGammaInput::photonTight) return "photonTight";
-       if (sf == EGammaInput::photonMedium) return "photonMedium";
-       if (sf == EGammaInput::photonMVA90) return "photonMVA90";
-       throw my_range_error("invalid input parameters");
-     };
  
  };
-
-
-
-
-
-
-
-
 
 
 
@@ -299,6 +278,8 @@ void SetPtBin( float pT);
  void DrawSF(TGraphErrors g, TF1 f, float eta);
  void DrawSF(TGraph g, float eta);
  void DrawSF(TGraphErrors g, TH1F f, float eta);
+ void DrawAll();
+ void DrawAllUncertainty();
  //===============================================
  
 
@@ -346,6 +327,9 @@ void SetFitFlag(int etaBin);
         std::vector<TF1> smooth_sf_; // safe fit functins for smooth scale factors for each eta bin 
         std::vector<TH1F> num_smooth_sf_; // safe numerival smoothed scale factors for each eta bin 
         std::vector<TF1> smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
+        std::vector<TF1> num_smooth_unc_; // safe uncertainty functions for smooth uncertianties and for each eta bin
+        std::vector<TGraphErrors> graph_; //safe graph of sf over pt
+        std::vector<TGraphErrors> graph_unc_; // safe graph of sf_unc/sf over pt
         float minsfunc_ =0;
         float maxsfunc_= 0;
         float maxUnc_=0;

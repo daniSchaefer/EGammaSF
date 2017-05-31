@@ -6,8 +6,6 @@
 #include "TLorentzVector.h"
 #include "TCanvas.h"
 #include "TH1.h"
-#include "TTreeReader.h"
-#include "TTreeReaderValue.h"
 #include "TH2D.h"
 #include "TF1.h"
 #include "EGammaSF.h"
@@ -15,7 +13,6 @@
 //#include "/cvmfs/cms.cern.ch/slc6_amd64_gcc491/lcg/root/6.02.00-odfocd5/include/TTreeReaderValueBase.h"
 #include <iostream>
 #include <iomanip>
-#include <cassert>
 #include <string>
 #include <vector>
 #include <exception>

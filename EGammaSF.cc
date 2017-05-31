@@ -13,6 +13,20 @@
 #include <iostream>
 #include <iomanip>
 
+std::string GetString(EGammaInput sf){
+       if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
+       if (sf == EGammaInput::electronLoose) return "electronLoose";
+       if (sf == EGammaInput::electronTight) return "electronTight";
+       if (sf == EGammaInput::electronMedium) return "electronMedium";
+       if (sf == EGammaInput::electronMVA80) return "electronMVA80";
+       if (sf == EGammaInput::electronMVA90) return "electronMVA90";
+       
+       if (sf == EGammaInput::photonLoose) return "photonLoose";
+       if (sf == EGammaInput::photonTight) return "photonTight";
+       if (sf == EGammaInput::photonMedium) return "photonMedium";
+       if (sf == EGammaInput::photonMVA90) return "photonMVA90";
+       throw my_range_error("invalid input parameters");
+}
 
 
 ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
@@ -31,8 +45,10 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
    fit_flag_ = parser->FitFlag();
+   uncertainty_flag_ = parser->UncFlag();
    local_flag_ = parser->LocalFitFlag();
    local_unc_flag_ = parser->LocalUncFlag();
+        PrintDebug(Form("uncertainty flag set to %i",uncertainty_flag_));
    egm2d_.SetName(parser->NameSF().c_str());
    maxBineta_ = egm2d_.GetXaxis()->GetNbins();
    maxBinpt_  = egm2d_.GetYaxis()->GetNbins();
@@ -44,7 +60,6 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
 
    efficiency_data_.SetName(parser->NameEffData().c_str());
    efficiency_mc_.SetName(parser->NameEffMC().c_str());
-   uncertainty_flag_ = parser->UncFlag();
         PrintDebug(Form("initialising histogram names using : %s, %s, %s", parser->NameSF().c_str() ,parser->NameEffMC().c_str(), parser->NameEffData().c_str()));
         PrintDebug(Form("fitting flag set to : %i",fit_flag_));
    //set fit range:
@@ -62,6 +77,8 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         InitializeSF();
         InitializeUnc();
    }
+   DrawAll();
+   DrawAllUncertainty();
    out.Close();
  }
  
@@ -76,9 +93,12 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
  
  void ScaleFactorHelper::SetFitFlag(int etaBin)
  {
-   fit_flag_ = local_flag_.at(etaBin);   
+   fit_flag_ = local_flag_.at(etaBin);
+   uncertainty_flag_ = local_unc_flag_.at(etaBin);
  }
-
+ 
+ 
+ 
  void ScaleFactorHelper::InitializeSF()
  {
         PrintDebug("===============================================================");
@@ -92,6 +112,7 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
         TH1F h;        
         if(debug_flag_){
             TGraphErrors g = GetTGraph(i);
+            graph_.push_back(g);
             if(fit_flag_!=100)
             {
                 fit = FitScaleFactor(g,i);
@@ -134,7 +155,8 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
               smooth_sf_.push_back(fit);
             }
         }
-   } 
+   }
+   
  }
  
  TH1F ScaleFactorHelper::GetHisto(int etaBin)
@@ -162,6 +184,7 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
       TF1 fitunc;
       if(debug_flag_){
       TGraphErrors gunc = GetTGraph(i,1);
+      graph_unc_.push_back(gunc);
       if (uncertainty_flag_ !=100){
             fitunc = GetUncertaintyFunction(i);
             fitunc.SetName(Form("smooth_unc_etabin%i",i));
@@ -346,6 +369,98 @@ TF1 ScaleFactorHelper::FitScaleFactor(TGraphErrors g, int etaBin)
 }
 
 
+void ScaleFactorHelper::DrawAll()
+{
+  if (debug_flag_){  
+  TCanvas* drawAll = new TCanvas("drawAll","drawAll",600,1000);
+  drawAll->Divide(2,maxBineta_/2.);  
+   for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
+   {  
+       SetFitFlag(i);
+       drawAll->cd(i);
+       graph_.at(i-1).GetXaxis()->SetTitle("pT (GeV)");
+       graph_.at(i-1).GetYaxis()->SetTitle("scale factor");
+       graph_.at(i-1).SetLineColor(kBlue);
+       graph_.at(i-1).SetLineWidth(2);
+       graph_.at(i-1).SetMarkerColor(kBlack);
+       graph_.at(i-1).SetMarkerStyle(8);
+       
+       num_smooth_sf_.at(i-1).SetLineColor(kRed);
+       num_smooth_sf_.at(i-1).SetLineWidth(2);
+       smooth_sf_.at(i-1).SetLineColor(kRed);
+       smooth_sf_.at(i-1).SetLineWidth(2);
+       graph_.at(i-1).Draw("ALP");
+       if (fit_flag_==100) num_smooth_sf_.at(i-1).Draw("same");
+       else smooth_sf_.at(i-1).Draw("same");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    float eta = egm2d_.GetXaxis() -> GetBinCenter(i);
+    addInfo->AddText(Form("#eta =  %.1f ", eta));\
+    if(fit_flag_!=100) addInfo->AddText(smooth_sf_.at(i-1).GetExpFormula());
+    addInfo->Draw("same");
+
+        
+   }
+   std::string modifier = GetString(input_);
+   drawAll->Modified();
+   drawAll->SaveAs(Form("All_%s.pdf",modifier.c_str()));
+ 
+  }
+}
+
+void ScaleFactorHelper::DrawAllUncertainty()
+{
+  if (debug_flag_){  
+  TCanvas* drawAll = new TCanvas("drawAll","drawAll",600,1000);
+  drawAll->Divide(2,maxBineta_/2.);  
+   for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
+   {  
+       SetFitFlag(i);
+       drawAll->cd(i);
+       graph_unc_.at(i-1).GetXaxis()->SetTitle("pT (GeV)");
+       graph_unc_.at(i-1).GetYaxis()->SetTitle("(unc sf)/sf");
+       graph_unc_.at(i-1).SetLineColor(kBlue);
+       graph_unc_.at(i-1).SetLineWidth(2);
+       graph_unc_.at(i-1).SetMarkerColor(kBlack);
+       graph_unc_.at(i-1).SetMarkerStyle(8);
+       
+//        num_smooth_unc_.at(i-1).SetLineColor(kRed);
+//        num_smooth_unc_.at(i-1).SetLineWidth(2);
+       smooth_unc_.at(i-1).SetLineColor(kRed);
+       smooth_unc_.at(i-1).SetLineWidth(2);
+       graph_unc_.at(i-1).Draw("ALP");
+       //if (uncertainty_flag_==100) num_smooth_unc_.at(i-1).Draw("same");
+       smooth_unc_.at(i-1).Draw("same");
+    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
+    addInfo->SetFillColor(0);
+    addInfo->SetLineColor(0);
+    addInfo->SetFillStyle(0);
+    addInfo->SetBorderSize(0);
+    addInfo->SetTextFont(42);
+    addInfo->SetTextSize(0.040);
+    addInfo->SetTextAlign(12);
+    float eta = egm2d_.GetXaxis() -> GetBinCenter(i);
+    addInfo->AddText(Form("#eta =  %.1f ", eta));\
+    addInfo->AddText(smooth_unc_.at(i-1).GetExpFormula());
+    addInfo->Draw("same");
+
+        
+   }
+   std::string modifier = GetString(input_);
+   drawAll->Modified();
+   drawAll->SaveAs(Form("AllUnc_%s.pdf",modifier.c_str()));
+ 
+  }
+}
+
+
+
 
 
 void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
@@ -382,6 +497,7 @@ void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
       
     
 }
+
 
 void ScaleFactorHelper::DrawSF(TGraphErrors g, TH1F f, float eta)
 {
