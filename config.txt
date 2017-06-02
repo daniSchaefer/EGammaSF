@@ -40,4 +40,7 @@
          LocalFitFunction<7<7=3
          LocalFitFunction<3<3=3
     UncFunction=0
+         SetFitRangeUnc<1<3=150
+         SetFitRangeUnc<3<7=100
+         SetFitRangeUnc<7<10=150
 ]

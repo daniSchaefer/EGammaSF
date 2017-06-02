@@ -28,12 +28,12 @@ int main(int argc, char** argv)
         TRandom *r = new TRandom();
         for(int i=0;i<80;i+=1)
         {
-        float pt = r->Gaus(130,80);
+        float pt = TMath::Abs(r->Gaus(130,80));
         float unc = bla->GetUncertainty(pt,2.1);
         float sf = bla->GetSF(pt,2.1);
         float sf_smooth = bla->GetSFSmooth(pt, 2.1);
         float un_rel = bla->GetUncertaintySmooth(pt, 2.1);
-        std::cout <<"pt : " << pt << "  sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << " unc smoothed : " << un_rel*sf_smooth << std::endl;
+        std::cout <<"pt : " << pt << "  sf : " << sf << " +- " << unc << " smoothed : "<< sf_smooth << " unc smoothed : " << un_rel << std::endl;
         }
         
         float eff = bla->GetEfficiency(600,-1.2,0);

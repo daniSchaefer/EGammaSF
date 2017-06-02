@@ -70,6 +70,7 @@ std::string GetString(EGammaInput sf);
      int UncFlag(){ return uncertainty_flag_;};
      std::map<int, int> LocalFitFlag(){return local_flag_;}
      std::map<int, int> LocalUncFlag(){return local_unc_flag_;}
+     std::map<int, int> GetFitRangeUnc() {return fit_range_unc_;}
      
  private:
      void ReadFile(std::ifstream &config, EGammaInput sf) {
@@ -153,6 +154,20 @@ std::string GetString(EGammaInput sf);
                     //std::cout << "bin " << i << " flag " << flag<< std::endl;
                  }
             }
+            if( line2.find("SetFitRangeUnc")!=std::string::npos)
+            {
+                 std::size_t n1 = line2.find_first_of("=");
+                 std::size_t n2 = line2.find_first_of("\n");
+                 std::size_t ns1 = line2.find_first_of("<");
+                 std::size_t ns2 = line2.find_last_of("<");
+                 int bin_low = atoi(line2.substr(ns1+1,ns2).c_str());
+                 int bin_up =  atoi(line2.substr(ns2+1,n1).c_str());
+                 int range = atoi(line2.substr(n1+1,n2).c_str());
+                 for( int i=bin_low;i<=bin_up;i++)
+                 {
+                    fit_range_unc_.insert ( std::pair<int,int>( i,range ));
+                 }
+            }
             
                 if( line2.find("]")!=std::string::npos) break;
             }
@@ -171,6 +186,7 @@ std::string GetString(EGammaInput sf);
      int uncertainty_flag_=0;
      std::map<int,int> local_flag_;
      std::map<int,int> local_unc_flag_;
+     std::map<int,int> fit_range_unc_;
  
  };
 
@@ -308,6 +324,7 @@ void SetFitFlag(int etaBin);
         std::map<int,int> local_flag_;
         int uncertainty_flag_ =0; // use different assumptions to estimate the scale factor uncertainties ( smoothing )
         std::map<int,int> local_unc_flag_;
+        std::map<int,int> unc_range_local_;
 
         EGammaInput input_;
         int etaBin_ = -99;                 // safe bin number of etaBin currently used
@@ -316,6 +333,7 @@ void SetFitFlag(int etaBin);
         int maxBineta_;
         float rangelow_;
         float rangeup_;
+        int unc_range_;
         
         float input_pt_;
         float input_eta_;              // safe eta/pt values SF are currently evaluated for

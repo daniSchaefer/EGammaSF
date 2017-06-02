@@ -13,6 +13,8 @@
 #include <iostream>
 #include <iomanip>
 
+// convert enum class to string -> used for naming 
+
 std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronRecoSF) return "electronRecoSF";
        if (sf == EGammaInput::electronLoose) return "electronLoose";
@@ -36,123 +38,131 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    ConfigParser* parser = new ConfigParser("config.txt",what);
    std::string filename = parser->NameFile();
         PrintDebug("opening file "+filename);
-        std::string openAs = "READ";
+   std::string openAs = "READ";
    TFile file(filename.c_str(),openAs.c_str());
-    if (file.IsZombie()) throw file_not_found();
+        if (file.IsZombie()) throw file_not_found();
    std::string outfilename = "OUT"+filename;
    file_ = outfilename;
-   egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));          
+   //initialize histos and change their names
+   egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str())); 
    efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
    efficiency_data_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffData().c_str()));
+   efficiency_data_.SetName(parser->NameEffData().c_str());
+   efficiency_mc_.SetName(parser->NameEffMC().c_str());
+   file.Close();
+   
+   // set maximum of bins in input histograms  
+   egm2d_.SetName(parser->NameSF().c_str());
+   maxBineta_ = egm2d_.GetXaxis()->GetNbins();
+   maxBinpt_  = egm2d_.GetYaxis()->GetNbins();
+   
+   // set flags for which fit function should be used as default and globally -> only important for the debugging mode where functions are chosen for the user
    fit_flag_ = parser->FitFlag();
    uncertainty_flag_ = parser->UncFlag();
    local_flag_ = parser->LocalFitFlag();
    local_unc_flag_ = parser->LocalUncFlag();
-        PrintDebug(Form("uncertainty flag set to %i",uncertainty_flag_));
-   egm2d_.SetName(parser->NameSF().c_str());
-   maxBineta_ = egm2d_.GetXaxis()->GetNbins();
-   maxBinpt_  = egm2d_.GetYaxis()->GetNbins();
+   unc_range_local_ = parser->GetFitRangeUnc();
    for (int e=1;e<= maxBineta_;e++)
    {
     if(local_flag_.find(e)==  local_flag_.end()) local_flag_.insert(std::pair<int, int>(e,fit_flag_));
     if(local_unc_flag_.find(e)==  local_unc_flag_.end()) local_unc_flag_.insert(std::pair<int, int>(e,uncertainty_flag_));
+    if(unc_range_local_.find(e) == unc_range_local_.end()) unc_range_local_.insert(std::pair<int,int>(e,rangeup_));
    }
+   //set fit range:
+   int nBins = egm2d_.GetYaxis()->GetNbins();
+   rangelow_= egm2d_.GetYaxis()->GetBinLowEdge(1);
+   rangeup_ = egm2d_.GetYaxis()->GetBinLowEdge(nBins)+ egm2d_.GetYaxis()->GetBinWidth(nBins);
 
-   efficiency_data_.SetName(parser->NameEffData().c_str());
-   efficiency_mc_.SetName(parser->NameEffMC().c_str());
         PrintDebug(Form("initialising histogram names using : %s, %s, %s", parser->NameSF().c_str() ,parser->NameEffMC().c_str(), parser->NameEffData().c_str()));
         PrintDebug(Form("fitting flag set to : %i",fit_flag_));
-   //set fit range:
-        int nBins = egm2d_.GetYaxis()->GetNbins();
-        rangelow_= egm2d_.GetYaxis()->GetBinLowEdge(1);
-        rangeup_ = egm2d_.GetYaxis()->GetBinLowEdge(nBins)+ egm2d_.GetYaxis()->GetBinWidth(nBins);
+        PrintDebug(Form("uncertainty flag set to %i",uncertainty_flag_));
         PrintDebug(Form("set range to %.1f - %.1f",rangelow_,rangeup_));
+        
+   // draw input sf -histo --> remove later     
    TCanvas* c = new TCanvas();
    egm2d_.Draw("COLZ");
    c->SaveAs("histo.pdf");
-   file.Close();
+   
+   // if in debug mode open output file to write the fit functions into
    if(debug_flag_) openAs = "RECREATE";
    TFile out(outfilename.c_str(),openAs.c_str());
+   // do fits /smoothing in these functions or load the predifined fit functions for user usage:
    if (input_ != EGammaInput::electronRecoSF){
         InitializeSF();
         InitializeUnc();
    }
+   out.Close();
+   // draw fits for cross checking
    DrawAll();
    DrawAllUncertainty();
-   out.Close();
  }
  
  
  
  
- 
-ScaleFactorHelper::~ScaleFactorHelper(void)
- {
-     
- }
- 
- void ScaleFactorHelper::SetFitFlag(int etaBin)
- {
-   fit_flag_ = local_flag_.at(etaBin);
-   uncertainty_flag_ = local_unc_flag_.at(etaBin);
- }
- 
+// destructor 
+ScaleFactorHelper::~ScaleFactorHelper(void) { }
+
+
+
+ // set local fit flags corresponding to the etaBin in use
+ void ScaleFactorHelper::SetFitFlag(int etaBin) { fit_flag_         = local_flag_.at(etaBin);
+                                                  uncertainty_flag_ = local_unc_flag_.at(etaBin);
+                                                  unc_range_ =  unc_range_local_.at(etaBin);
+}
  
  
+ 
+ // inialize smooth scale factors :
  void ScaleFactorHelper::InitializeSF()
  {
         PrintDebug("===============================================================");
         PrintDebug("starting fit for scale factors ");
         PrintDebug("==============================================================="); 
-        if(debug_flag_) {egm2d_.Write(); efficiency_data_.Write(); efficiency_mc_.Write();}
-   for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
-   {    
-        SetFitFlag(i);
-        TF1 fit;
-        TH1F h;        
-        if(debug_flag_){
-            TGraphErrors g = GetTGraph(i);
-            graph_.push_back(g);
-            if(fit_flag_!=100)
-            {
-                fit = FitScaleFactor(g,i);
-                fit.SetName(Form("smooth_sf_etabin%i",i));
-                PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
-                DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
-                fit.Write();
-                smooth_sf_.push_back(fit);
-                num_smooth_sf_.push_back(h);
-            }
-            else
-            {
-//                 TGraphSmooth *gtmp = new TGraphSmooth();    
-//                 TGraph* gs = gtmp->SmoothLowess(&g,"",0.7);//gtmp->Approx(&g);
-//                 DrawSF(*gs,egm2d_.GetXaxis() -> GetBinCenter(i));
-//                 num_smooth_sf_.push_back(*gs);
-//             
-//                 testhisto->Smooth();
-//                 TCanvas* csmooth = new TCanvas();
-//                 testhisto->Draw("HIST");
-//                 csmooth->SaveAs(Form("test_smoothingfunc_histo_eta%i.pdf",i));
-                h = GetHisto(i);
-                h.Smooth();
-                DrawSF(g,h,egm2d_.GetXaxis() -> GetBinCenter(i));
-                h.SetName(Form("smooth_sf_etabin%i",i));
-                h.Write();
-                num_smooth_sf_.push_back(h);
-                smooth_sf_.push_back(fit);
-                
+        if(debug_flag_) {egm2d_.Write(); efficiency_data_.Write(); efficiency_mc_.Write();
+            for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
+            {    
+                SetFitFlag(i);
+                TF1 fit;
+                TH1F h;        
+                TGraphErrors g = GetTGraph(i);
+                graph_.push_back(g);
+                if(fit_flag_!=100)
+                {
+                    fit = FitScaleFactor(g,i);
+                    fit.SetName(Form("smooth_sf_etabin%i",i));
+                    PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
+                    DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
+                    fit.Write();
+                    smooth_sf_.push_back(fit);
+                    num_smooth_sf_.push_back(h);
+                }
+                else
+                {
+                    h = GetHisto(i);
+                    h.Smooth();
+                    DrawSF(g,h,egm2d_.GetXaxis() -> GetBinCenter(i));
+                    h.SetName(Form("smooth_sf_etabin%i",i));
+                    h.Write();
+                    num_smooth_sf_.push_back(h);
+                    smooth_sf_.push_back(fit);
+                }
             }
         }
         else{
-            if(fit_flag_!=100){
-                fit = SetSFFunction(i);
-                smooth_sf_.push_back(fit);
-                num_smooth_sf_.push_back(h);
-            }
-            else {
-              num_smooth_sf_.push_back(SetSFHisto(i));
-              smooth_sf_.push_back(fit);
+            for(int i = 1; i< egm2d_.GetXaxis() -> GetNbins() +1;i++)
+            {    
+                SetFitFlag(i);
+                graph_.push_back(GetTGraph(i));
+                if(fit_flag_!=100){ 
+                    TH1F h;
+                    smooth_sf_.push_back(SetSFFunction(i));
+                    num_smooth_sf_.push_back(h);
+                }
+                else {
+                    TF1 fit;
+                    num_smooth_sf_.push_back(SetSFHisto(i));
+                    smooth_sf_.push_back(fit);
             }
         }
    }
@@ -178,10 +188,12 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
  {
         PrintDebug("===============================================================");
         PrintDebug("starting fit for scale factor uncertainties ");
-        PrintDebug("===============================================================");      
+        PrintDebug("==============================================================="); 
    for(int i=1;i<egm2d_.GetXaxis()->GetNbins()+1;i++)
    {
+      SetFitFlag(i);
       TF1 fitunc;
+      TH1F hunc;
       if(debug_flag_){
       TGraphErrors gunc = GetTGraph(i,1);
       graph_unc_.push_back(gunc);
@@ -194,17 +206,22 @@ ScaleFactorHelper::~ScaleFactorHelper(void)
             TFitResult* fitres = (gunc.Fit(&fitunc,"RW")).Get();
             fitunc.Write();
         //else{
-            //fitunc = SmoothUncertainty(TGraphErrors g_eta);  
+//             hunc = GetHisto(i);
+//             hunc.Smooth();
+//             DrawSF(gunc,hunc,egm2d_.GetXaxis() -> GetBinCenter(i));
+//             hunc.SetName(Form("smooth_unc_etabin%i",i));
+//             hunc.Write();
+//             num_smooth_unc_.push_back(hunc);
+//             smooth_unc_.push_back(fitunc);
+              
         //} 
       }
         smooth_unc_.push_back(fitunc);
+        //num_smooth_unc_.push_back(hunc);
         DrawSF(gunc,egm2d_.GetXaxis() -> GetBinCenter(i));
       }
           
     }
-   
-   std::cout << smooth_unc_.size() << std::endl;  
-     
  }
  
  
@@ -270,8 +287,7 @@ float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
   SetPtBin(pT);
   if(uncertainty_flag_==100){ std::cout << "warning : scale factor must be numerically smoothed in order to use this uncertainty option" << std::endl; return num_smooth_sf_.at(etaBin_).GetBinError(ptBin_);} 
   if(input_ == EGammaInput::electronRecoSF) return GetUncertainty(pT,superClusterEta);
-  float rangeup = rangeup_;
-  if(uncertainty_flag_ ==0) rangeup = 150;
+  float rangeup = unc_range_;
   if(pT > rangeup) return smooth_unc_.at(etaBin_-1).Eval(rangeup);
   if(pT < rangelow_) return smooth_unc_.at(etaBin_-1).Eval(rangelow_);
   float unc_rel = smooth_unc_.at(etaBin_-1).Eval(pT);
@@ -313,6 +329,7 @@ void ScaleFactorHelper::SetEtaBin(float superClusterEta)
 
 void ScaleFactorHelper::SetPtBin(float pT)
 {
+  if (pT < 0 ) throw my_range_error("pT < 0 not allowed");  
   if (pT != input_pt_){  
   input_pt_ = pT;  
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);
@@ -346,7 +363,7 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         if (sf_unc/sf > findmax) findmax =sf_unc/sf;
         if (forUncertainty)
         {
-           g->SetPoint(i-1,pt,sf_unc/sf);
+           g->SetPoint(i-1,pt,sf_unc);
            g->SetPointError(i-1,pt_unc,0.);
         }
         else
@@ -614,13 +631,13 @@ TF1 ScaleFactorHelper::GetUncertaintyFunction(int etaBin)
      TF1* f;
      if(uncertainty_flag_==0)
      {
-         f = new TF1("func","[2]+ [1]*(x-[0])^(2)",rangelow_,150.);
+         f = new TF1("func","[2]+ [1]*(x-[0])^(2)",rangelow_,unc_range_);
          f->SetParLimits(0,20.,100.);
          return *f;
      }
      if(uncertainty_flag_==1)
      {
-         f = new TF1("func","[0]+ ([1]/x^2)",rangelow_,rangeup_);
+         f = new TF1("func","[0]+ ([1]/x^2)",rangelow_,unc_range_);
          return *f;
      }  
      
