@@ -286,6 +286,7 @@ void SetPtBin( float pT);
 // // return a fit function according to uncertainty_flag_ (functions that seem resonable and should be tried out )
 // // => SmoothUncertainty needs to react differently to the functions (most likely)
  TF1 GetUncertaintyFunction(int etaBin);
+ TF1 SetUncertaintyFunction(int etaBin);
 // //===============================================
  
  
@@ -350,7 +351,8 @@ void SetFitFlag(int etaBin);
         std::vector<TGraphErrors> graph_unc_; // safe graph of sf_unc/sf over pt
         float minsfunc_ =0;
         float maxsfunc_= 0;
-        float maxUnc_=0;
+        std::map<int,float> maxUnc_;
+        std::map<int,float> minUnc_;
 //===============================================
 //===============================================
 

@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 {
      try{
         // initialize scale factor helper : 
-        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronTight,1);
+        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronRecoSF,1);
          
         TRandom *r = new TRandom();
         for(int i=0;i<80;i+=1)
