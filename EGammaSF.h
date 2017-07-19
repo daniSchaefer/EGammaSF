@@ -6,8 +6,12 @@
 #include "TFile.h"
 #include "TF1.h"
 #include "TGraphErrors.h"
+#include "TMath.h"
 #include "TFitResultPtr.h"
 #include "TFitResult.h"
+#include "TROOT.h"
+#include "TRint.h"
+#include "TMinuit.h"
 #include<iostream>
 #include<fstream>
 #include<exception>
@@ -114,7 +118,13 @@ std::string GetString(EGammaInput sf);
             {
                  std::size_t n1 = line2.find_first_of("=");
                  std::size_t n2 = line2.find_first_of("\n");
-                 fit_flag_ = atoi(line2.substr(n1+1,n2).c_str());
+                 std::string sub = line2.substr(n1+1,n2);
+                 if( sub.find("findBestFit")!=std::string::npos){
+                     fit_flag_= -99;
+                 }
+                 else {
+                 fit_flag_ = atoi(sub.c_str());
+                 }
             }
              if( line2.find("UncFunc")!=std::string::npos)
             {
@@ -258,6 +268,7 @@ void SetPtBin( float pT);
 // get all pT values (and uncertainties) corresponding to the bin in eta etaBin and put them into a TGraphErrors
 // this function has to handle additional uncertainties applied depending on pT (for example 1% extra uncertainty for pT < 20 GeV) see:  https://twiki.cern.ch/twiki/bin/viewauth/CMS/EgammaIDRecipesRun2
  TGraphErrors GetTGraph(int etaBin, bool forUncertainty =0);
+ TGraphErrors GetGraphNumSmoothed(TH1F h);
 //===============================================    
  
 //===============================================
@@ -281,7 +292,7 @@ void SetPtBin( float pT);
  TH1F SetSFHisto(int etaBin);
 // //===============================================
 // 
-// 
+ void TryFits();
 // //===============================================
 // // return a fit function according to uncertainty_flag_ (functions that seem resonable and should be tried out )
 // // => SmoothUncertainty needs to react differently to the functions (most likely)
@@ -289,10 +300,12 @@ void SetPtBin( float pT);
  TF1 SetUncertaintyFunction(int etaBin);
 // //===============================================
  
+ float FixMaxUncPoint(int etaBin, float pt_minUnc);
  
  //===============================================
  // if debug_flag_ set draw a canvas with TGraph of SF and uncertainties (and functions) belonging to etaBin_
  void DrawSF(TGraphErrors g, TF1 f, float eta);
+ void DrawUnc(TGraphErrors g, TF1 f, float eta);
  void DrawSF(TGraph g, float eta);
  void DrawSF(TGraphErrors g, TH1F f, float eta);
  void DrawAll();
@@ -353,6 +366,13 @@ void SetFitFlag(int etaBin);
         float maxsfunc_= 0;
         std::map<int,float> maxUnc_;
         std::map<int,float> minUnc_;
+        std::map<int,float> maxUnc_sm45_; //contains the maximal uncertainty value for pt < 45
+        std::map<int,float> maxUnc_l45_; // same only for pt> 45 -> only relevant for electron scale factors!
+        std::map<int,float> ptmaxUnc_;
+        std::map<int,float> ptminUnc_;
+        
+        
+        std::map<int,int> ndof_;
 //===============================================
 //===============================================
 

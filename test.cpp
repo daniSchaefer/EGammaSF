@@ -1,6 +1,8 @@
 // compile with : g++ test.cpp EGammaSF.cc `root-config --cflags --glibs --libs --evelibs`
            
 #include "TTree.h"
+#include "TROOT.h"
+#include "TMinuit.h"
 #include "TFile.h"
 #include "TMath.h"
 #include "TLorentzVector.h"
@@ -23,8 +25,7 @@ int main(int argc, char** argv)
 {
      try{
         // initialize scale factor helper : 
-        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronRecoSF,1);
-         
+        ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::photonMedium,1);
         TRandom *r = new TRandom();
         for(int i=0;i<80;i+=1)
         {
