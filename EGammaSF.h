@@ -20,7 +20,7 @@ using namespace std;
 
 // class of allowed input values:
 
-enum class EGammaInput : int {electronRecoSF = 1 , electronMVA90 =2, electronMVA80 =3 , electronTight =4, electronMedium =5, electronLoose = 6, photonMVA90 = 7, photonLoose=8, photonTight=9, photonMedium = 10};
+enum class EGammaInput : int {electronRecoSF = 1 , electronMVA90 =2, electronMVA80 =3 , electronTight =4, electronMedium =5, electronLoose = 6, photonMVA90 = 7, photonLoose=8, photonTight=9, photonMedium = 10, electronCutBasedVetoID=11, electronVetoCSEV=12, electronVetoPixelSeed, electronVetoPixelSeedEndcap, electronVetoPixelSeedBarrel};
 
 
 
