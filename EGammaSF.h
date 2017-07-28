@@ -85,11 +85,14 @@ std::string GetString(EGammaInput sf);
         if(!config) break;
         // read from stream
         //std::cout << line << std::endl;
+        if(line.find("#")!=std::string::npos)
+            continue;
         if(line.find(cat)!=std::string::npos)
         {
             for(;;){
                     std::string line2;
                     std::getline(config,line2);
+                    
             if( line2.find("name")!=std::string::npos)
             {
                  std::size_t n1 = line2.find_first_of("=");
@@ -353,7 +356,6 @@ void SetFitFlag(int etaBin);
         float input_eta_;              // safe eta/pt values SF are currently evaluated for
        
         TH2F egm2d_;                    // safe 2d histo containing scale factors
-        TH1F egm1d_;                    // safe 2d histo containing scale factors
         TH2F efficiency_mc_;            // safe 2d histo containing efficiency in mc
         TH2F efficiency_data_;          // safe 2d histo containing efficiency in data
         
