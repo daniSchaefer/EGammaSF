@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 {
      try{
         // initialize scale factor helper : 
-        //ScaleFactorHelper* bla  = new ScaleFactorHelper(EGammaInput::electronCutBasedVetoID,0);
+        ScaleFactorHelper* bla  = new ScaleFactorHelper(EGammaInput::electronCutBasedVetoID,1);
        //  ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronMedium,0);
        //   ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronLoose,0);
 //         ScaleFactorHelper* bla2 = new ScaleFactorHelper(EGammaInput::electronTight,0);
@@ -36,7 +36,7 @@ int main(int argc, char** argv)
 //         ScaleFactorHelper* bla0p = new ScaleFactorHelper(EGammaInput::photonMedium,0);
 //         ScaleFactorHelper* bla1p = new ScaleFactorHelper(EGammaInput::photonLoose,0);
 //         ScaleFactorHelper* bla2p = new ScaleFactorHelper(EGammaInput::photonTight,0);
-          ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronVetoPixelSeedEndcap,1);
+         // ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronVetoPixelSeedEndcap,1);
         
         
         

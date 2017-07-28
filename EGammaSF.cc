@@ -53,13 +53,8 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         if (file.IsZombie()) throw file_not_found();
    std::string outfilename = "OUT"+filename;
    file_ = outfilename;
-   //initialize histos and change their names
-   std::cout << parser->NameSF().c_str() << "bla bal "<< std::endl;
-   std::cout << " bla " << std::endl;
-   egm2d_ = *dynamic_cast<TH2F*>(file.Get("Scaling_Factors_HasPix_R9 < 0.94"));
-   std::cout << &egm2d_ <<std::endl;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));
-   std::cout << &egm2d_ <<std::endl;
+   
    if (parser->NameEffData().find("NONE")==std::string::npos)
    {
         efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));

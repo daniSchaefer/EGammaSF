@@ -353,6 +353,7 @@ void SetFitFlag(int etaBin);
         float input_eta_;              // safe eta/pt values SF are currently evaluated for
        
         TH2F egm2d_;                    // safe 2d histo containing scale factors
+        TH1F egm1d_;                    // safe 2d histo containing scale factors
         TH2F efficiency_mc_;            // safe 2d histo containing efficiency in mc
         TH2F efficiency_data_;          // safe 2d histo containing efficiency in data
         
