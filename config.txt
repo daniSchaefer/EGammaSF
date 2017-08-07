@@ -4,6 +4,15 @@
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
 ]
+[electronCutBasedVetoID
+    name=egammaEffi_cutbased_vetoIDelectron.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+    UncFunction=1000
+    FitFunction=findBestFit
+]
+
 [photonLoose
     name=egammaEffi_EGM2D_photon_cutbased_looseID.root
     EffMC=EGamma_EffMC2D
@@ -20,27 +29,55 @@
         LocalFitFunction<4<4=100
         LocalFitFunction<5<6<=0
 ]
+[photonTight
+    name=egammaEffi_photon_cutbased_tightID.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+    UncFunction=1006
+    FitFunction=findBestFit
+]
 [electronLoose
     name=egammaEffi_EGM2D_electron_cutbased_looseID.root
     EffMC=EGamma_EffMC2D
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
+    UncFunction=1000
+    FitFunction=findBestFit
 ]
-[electronTight
-    name=egammaEffi_EGM2D_electron_cutbased_tightID.root
+[electronMedium
+    name=egammaEffi_EGM2D_electron_cutbased_mediumID.root
     EffMC=EGamma_EffMC2D
     EffData=EGamma_EffData2D
     SF=EGamma_SF2D
-    FitFunction=11
-         LocalFitFunction<10<10=3
-         LocalFitFunction<1<1=3
-         LocalFitFunction<9<9=2
-         LocalFitFunction<1<2=2
-         LocalFitFunction<5<6=1
-         LocalFitFunction<7<7=3
-         LocalFitFunction<3<3=3
-    UncFunction=0
-         SetFitRangeUnc<1<3=125
-         SetFitRangeUnc<3<7=80
-         SetFitRangeUnc<7<10=125
+    UncFunction=1000
+    FitFunction=findBestFit
 ]
+[electronTight
+   name=egammaEffi_EGM2D_electron_cutbased_tightID.root
+    EffMC=EGamma_EffMC2D
+    EffData=EGamma_EffData2D
+    SF=EGamma_SF2D
+    UncFunction=1000
+    FitFunction=findBestFit
+]
+
+
+#[electronTight
+#    name=egammaEffi_EGM2D_electron_cutbased_tightID.root
+#    EffMC=EGamma_EffMC2D
+#    EffData=EGamma_EffData2D
+#    SF=EGamma_SF2D
+#    FitFunction=11
+#         LocalFitFunction<10<10=3
+#         LocalFitFunction<1<1=3
+#         LocalFitFunction<9<9=2
+#         LocalFitFunction<1<2=2
+#         LocalFitFunction<5<6=1
+#         LocalFitFunction<7<7=3
+#         LocalFitFunction<3<3=3
+#    UncFunction=0
+#         SetFitRangeUnc<1<3=125
+#         SetFitRangeUnc<3<7=80
+#         SetFitRangeUnc<7<10=125
+#]

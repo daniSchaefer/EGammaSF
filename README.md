@@ -2,10 +2,12 @@
 
 
 provides simple class to help analysist extract the scale-factors provided by EGamma POG.
+use makefile and test.cpp to get minimal working example
 
 
 ## While in debugging stage:
-    use makefile and test.cpp to get minimal working example
+    only in the debugging stage, are fits made for the smoothing of sf and the smoothed uncertainties are calculated and saved to the output file OUT*.root
+    if the class is used in user mode, those functions are read from the OUT*.root file
     
     
 ## Class properties:
@@ -55,4 +57,8 @@ provides simple class to help analysist extract the scale-factors provided by EG
           this will use a 1/x fit for the 1,2nd and third bin in eta
           all bins not covered by this are fitted with the function specified in FitFunction or the default 0 if no fit function is specified
           an arbitrary amount of local fit functions can be used
+          
+    alternatively the option findBestFit can be used in order to loop over all possible fit functions, and set the function with the smallest chi2 value (for similiar chi2 the function with fewer parameters is favored) as fit function
+    
+    
     
