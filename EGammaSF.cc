@@ -35,6 +35,7 @@ std::string GetString(EGammaInput sf){
        if (sf == EGammaInput::electronVetoPixelSeedBarrel) return "electronVetoPixelSeedBarrel";
        if (sf == EGammaInput::electronVetoPixelSeed) return "electronVetoPixelSeed";
        if (sf == EGammaInput::electronVetoCSEV) return "electronVetoCSEV";
+       if (sf == EGammaInput::electronCutBasedVetoID ) return "electronCutBasedVetoID";
        
        
        throw my_range_error("invalid input parameters");
@@ -53,13 +54,8 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         if (file.IsZombie()) throw file_not_found();
    std::string outfilename = "OUT"+filename;
    file_ = outfilename;
-   //initialize histos and change their names
-   std::cout << parser->NameSF().c_str() << "bla bal "<< std::endl;
-   std::cout << " bla " << std::endl;
-   egm2d_ = *dynamic_cast<TH2F*>(file.Get("Scaling_Factors_HasPix_R9 < 0.94"));
-   std::cout << &egm2d_ <<std::endl;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));
-   std::cout << &egm2d_ <<std::endl;
+   
    if (parser->NameEffData().find("NONE")==std::string::npos)
    {
         efficiency_mc_ = *dynamic_cast<TH2F*>(file.Get(parser->NameEffMC().c_str()));
@@ -99,13 +95,16 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         PrintDebug(Form("fitting flag set to : %i",fit_flag_));
         PrintDebug(Form("uncertainty flag set to %i",uncertainty_flag_));
         PrintDebug(Form("set range to %.1f - %.1f",rangelow_,rangeup_));
-        
-   // draw input sf -histo --> remove later     
-   TCanvas* c = new TCanvas();
-   egm2d_.Draw("COLZ");
-   c->SaveAs("histo.pdf");
+        PrintDebug(Form("Draw input sf histogram %s ",("histo_"+GetString(input_)+".pdf").c_str()));
+        // draw input sf -histo
+        if(debug_flag_){
+            TCanvas* c = new TCanvas();
+            egm2d_.Draw("COLZ");
+            c->SaveAs(("histo_"+GetString(input_)+".pdf").c_str());
+        }
    
    // if in debug mode open output file to write the fit functions into
+   PrintDebug(Form("create output file %s ",outfilename.c_str())); 
    if(debug_flag_) openAs = "RECREATE";
    TFile out(outfilename.c_str(),openAs.c_str());
    // do fits /smoothing in these functions or load the predifined fit functions for user usage:
@@ -113,12 +112,11 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         TryFits();
         InitializeSF();
         InitializeUnc();
+        // draw fits for cross checking
         DrawAll();
         DrawAllUncertainty();
    }
-   out.Close();
-   // draw fits for cross checking
-   
+   out.Close();   
  }
  
  
@@ -139,18 +137,12 @@ ScaleFactorHelper::~ScaleFactorHelper(void) { }
 TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
 {
     h.Smooth();
-    //TCanvas * c = new TCanvas("c","c",400,400);
-    //h.Draw();
-    
     TGraphErrors *g = new TGraphErrors(0);
     for ( int i =1; i< h.GetNbinsX()+1; i++)
     {
      g->SetPoint(i-1,h.GetXaxis()->GetBinCenter(i),h.GetBinContent(i));  
      g->SetPointError(i-1,h.GetBinWidth(i)/2.,h.GetBinError(i));
     }
-    //g->SetLineColor(kRed);
-    //g->Draw("sameLP");
-    //c->SaveAs("test.pdf");
     return *g;
 }
  
@@ -179,7 +171,6 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
             //TGraphErrors gS = GetGraphNumSmoothed(h);
             fit_flag_ = fitflags.at(f);
             TF1 fit = FitScaleFactor(gS,eb);
-            //std::cout << "status " << gMinuit->GetStatus() << std::endl;
             chi2.push_back(fit.GetChisquare());
             //ndof.push_back(fit.GetNDF());
             ndof.push_back(ndof_[fitflags.at(f)]);
@@ -207,7 +198,6 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
         for ( int i=0;i<chi2.size();i++)
         {
           double L = TMath::Log(chi2.at(i)) + ndof.at(i);
-          //double L = chi2.at(i) + ndof.at(i);  
           std::cout << " likelihood " << L << " fit function " << fitflags.at(i)<< std::endl;
           std::cout << " chi2 " << chi2.at(i) << std::endl;
           if (L < Lmin and !(TMath::Abs(TMath::Log(chi2.at(i)))== std::numeric_limits<double>::infinity()) )
@@ -217,8 +207,6 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
           }
         }
     // set local fit flag to the best function!
-        //fits.at(index).SetName(Form("smooth_sf_etabin%i",i));
-        //smooth_sf_.push_back(fits.at(index));
         std::cout << " taking fit function :  " << fitflags.at(index) << std::endl;
         local_flag_[eb] = fitflags.at(index);  
       }    
@@ -264,7 +252,6 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
                     
                     fit.SetName(Form("smooth_sf_etabin%i",i));
                     PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
-                    DrawSF(g,fit,egm2d_.GetXaxis() -> GetBinCenter(i));
                     fit.Write();
                     smooth_sf_.push_back(fit);
                     num_smooth_sf_.push_back(h);
@@ -275,7 +262,6 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
                 {
                     h = GetHisto(i);
                     h.Smooth();
-                    DrawSF(g,h,egm2d_.GetXaxis() -> GetBinCenter(i));
                     h.SetName(Form("smooth_sf_etabin%i",i));
                     h.Write();
                     num_smooth_sf_.push_back(h);
@@ -351,13 +337,11 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
  
         TF1 f = GetUncertaintyFunction(i);
         
-        
-        //std::cout << " steigung : "<< para << std::endl;
+    
         f.SetParameter(2,parb);
         f.SetParameter(1,para);
         f.SetParameter(0,parc);
         
-        //std::cout << f.Eval(xmax) << std::endl;
 
         f.SetName(Form("smooth_unc_etabin%i",i));
         smooth_unc_.push_back(f);
@@ -379,12 +363,11 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
         std::cout << "xmin " << xmin << " ymin " << ymin << " xmax "<< xmax << " ymax " << ymax << std::endl;
         
         TF1 f = GetUncertaintyFunction(i);
-        //std::cout << " steigung : "<< para << std::endl;
+        
         f.SetParameter(2,xmin);
         f.SetParameter(1,para);
         f.SetParameter(0,parb);
         
-        //std::cout << f.Eval(xmax) << std::endl;
 
         f.SetName(Form("smooth_unc_etabin%i",i));
         smooth_unc_.push_back(f);
@@ -399,14 +382,10 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
         fitunc = GetUncertaintyFunction(i);
             fitunc.SetName(Form("smooth_unc_etabin%i",i));
             if (uncertainty_flag_ ==0) fitunc.SetParLimits(2,minsfunc_,10);
-            //std::cout << " value to converge to : "<< maxsfunc_ << std::endl;
             if (uncertainty_flag_ ==1) fitunc.SetParLimits(0,maxsfunc_,1.2*maxsfunc_);
             TFitResult* fitres = (gunc.Fit(&fitunc,"REX0")).Get();
             fitunc.Write();
-        smooth_unc_.push_back(fitunc);
-        //num_smooth_unc_.push_back(hunc);
-        DrawUnc(gunc,fitunc,egm2d_.GetXaxis() -> GetBinCenter(i));  
-          
+            smooth_unc_.push_back(fitunc);
      
       }
       }
@@ -538,10 +517,7 @@ float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
   if(uncertainty_flag_==100){ std::cout << "warning : scale factor must be numerically smoothed in order to use this uncertainty option" << std::endl; return num_smooth_sf_.at(etaBin_).GetBinError(ptBin_);} 
  
   if(input_ == EGammaInput::electronRecoSF or input_ == EGammaInput::electronVetoPixelSeedEndcap or input_ == EGammaInput::electronVetoPixelSeedBarrel or input_ == EGammaInput::electronVetoPixelSeed or input_ == EGammaInput::electronVetoCSEV) return GetUncertainty(pT,superClusterEta);
-  //float rangeup = unc_range_;
   float unc = smooth_unc_.at(etaBin_-1).Eval(pT);
-  //if(pT > rangeup) {unc_rel = smooth_unc_.at(etaBin_-1).Eval(rangeup); }
-  //if(pT < rangelow_) { unc_rel = smooth_unc_.at(etaBin_-1).Eval(rangelow_); }
   float minimal_uncertainty =minUnc_[etaBin_]; 
   if(unc < minimal_uncertainty){ unc = minimal_uncertainty;}
   if((input_ ==EGammaInput::electronLoose or input_ ==EGammaInput::electronTight or input_ ==EGammaInput::electronMedium or input_ ==EGammaInput::electronMVA80 or input_ == EGammaInput::electronMVA90 or input_ == EGammaInput::electronCutBasedVetoID)){
@@ -549,8 +525,6 @@ float ScaleFactorHelper::GetUncertaintySmooth(float pT, float superClusterEta)
    if(pT > 45. and unc > maxUnc_l45_[etaBin_]){unc = maxUnc_l45_[etaBin_];}    
   }
   if(unc > maxUnc_[etaBin_]) {unc = maxUnc_[etaBin_];} // maximal uncertainty given by the maximal uncertainty measured
-  
-  //std::cout << "bis hier "<<std::endl;
   return unc;  
 }
 
@@ -561,7 +535,6 @@ float ScaleFactorHelper::GetUncertainty(float pT, float superClusterEta)
  SetEtaBin(superClusterEta);
  SetPtBin(pT);
  sf_unc = egm2d_.GetBinError(etaBin_,ptBin_);
- //sf_unc = TMath::Abs(pow(egm2d_.GetBinError(etaBin_,ptBin_),2)+pow(egm2d_.GetYaxis()->GetBinWidth(ptBin_)/egm2d_.GetYaxis()->GetBinCenter(ptBin_),2));
   // add additional uncertainty to electron reconstruction scale-factor:
   if(input_ == EGammaInput::electronRecoSF)
   {
@@ -596,7 +569,6 @@ void ScaleFactorHelper::SetPtBin(float pT)
   ptBin_ = egm2d_.GetYaxis() -> FindBin(pT);
   maxBinpt_ = egm2d_.GetYaxis() -> GetNbins();
   if(ptBin_ ==0) {std::string err = "tried to evaluate scale factor for pt < "; err.append(std::to_string(egm2d_.GetYaxis()->GetBinLowEdge(ptBin_+1)));
-      //std::cout << err << std::endl;
       ptBin_=1;
       /*throw my_range_error(err);*/}
   if(ptBin_ >= maxBinpt_ and maxBinpt_ > 1 ) ptBin_ = maxBinpt_-1;  // last pt bin is only used as control but the scale-factor here should not be used because of limited statistics
@@ -621,7 +593,6 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         float pt = egm2d_.GetYaxis() -> GetBinCenter(i);
         float sf = GetSF(pt,eta);
         float pt_unc = egm2d_.GetYaxis() -> GetBinWidth(i) /2.;
-        //std::cout << " pt " << pt << " pt unc " << pt_unc << std::endl;
         float sf_unc = GetUncertainty(pt,eta);
         if (sf_unc < findmin) {findmin =sf_unc; ptmin = pt;}
         if (sf_unc > findmax) {findmax =sf_unc; ptmax = pt;}
@@ -635,9 +606,7 @@ TGraphErrors ScaleFactorHelper::GetTGraph(int etaBin,bool forUncertainty)
         {
            //float sf_unc_unc = sf_unc/TMath::Sqrt(2*(maxBinpt_*maxBineta_-2)); 
            //float sf_unc_unc = TMath::Sqrt( sf_unc*sf_unc*TMath::Sqrt( 2/(TMath::Abs(sf_unc-1))));
-           //std::cout << sf_unc_unc <<std::endl;
             g->SetPoint(i-1,pt,sf_unc);
-            
            //g->SetPointError(i-1,pt_unc,sf_unc_unc);
         }
         else
@@ -760,7 +729,6 @@ void ScaleFactorHelper::DrawAllUncertainty()
        graph_unc_.at(i-1).GetXaxis()->SetTitle("pT (GeV)");
        graph_unc_.at(i-1).GetYaxis()->SetTitle("(unc sf)/sf");
        graph_unc_.at(i-1).SetLineColor(kBlue);
-       //graph_unc_.at(i-1).SetMaximum(0.16);
        graph_unc_.at(i-1).SetLineWidth(2);
        graph_unc_.at(i-1).SetMarkerColor(kBlack);
        graph_unc_.at(i-1).SetMarkerStyle(8);
@@ -806,144 +774,12 @@ void ScaleFactorHelper::DrawAllUncertainty()
     addInfo->Draw("same");
 
         
-   }
+    }
    std::string modifier = GetString(input_);
    drawAll->Modified();
    drawAll->SaveAs(Form("AllUnc_%s.pdf",modifier.c_str()));
  
   }
-}
-
-
-
-
-
-void ScaleFactorHelper::DrawSF(TGraphErrors g, TF1 f, float eta)
-{
-    TCanvas* cg = new TCanvas();
-    g.GetXaxis()->SetTitle("pT (GeV)");
-    g.GetYaxis()->SetTitle("scale factor");
-    g.SetLineColor(kBlue);
-    g.SetLineWidth(2);
-    g.SetMarkerColor(kBlack);
-    g.SetMarkerStyle(8);
-    f.SetLineColor(kRed);
-    f.SetLineWidth(2);
-    //g.SetMaximum(1.1);
-    //g.SetMinimum(0.8);
-    g.Draw("ALP");
-    f.Draw("same");
-    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
-    addInfo->SetFillColor(0);
-    addInfo->SetLineColor(0);
-    addInfo->SetFillStyle(0);
-    addInfo->SetBorderSize(0);
-    addInfo->SetTextFont(42);
-    addInfo->SetTextSize(0.040);
-    addInfo->SetTextAlign(12);
-    float Chi2 = g.Chisquare(&f,"R");
-    int ndof   = maxBinpt_ -2;
-    std::cout << " chi2 " <<  Chi2 << " ndof " << ndof << std::endl;
-    addInfo->AddText(Form("#eta =  %.1f ", eta));
-    addInfo->AddText(f.GetExpFormula());
-    addInfo->AddText(Form("#chi^{2}/ndof = %.3f ",Chi2/ndof));
-    addInfo->Draw("same");
-    cg->SaveAs(Form("graph_%.1f_fitfunction%i.pdf",eta,fit_flag_));  
-      
-    
-}
-
-void ScaleFactorHelper::DrawUnc(TGraphErrors g, TF1 f, float eta)
-{
-    TCanvas* cg = new TCanvas();
-    g.GetXaxis()->SetTitle("pT (GeV)");
-    g.GetYaxis()->SetTitle("scale factor");
-    g.SetLineColor(kBlue);
-    g.SetLineWidth(2);
-    g.SetMarkerColor(kBlack);
-    g.SetMarkerStyle(8);
-    f.SetLineColor(kRed);
-    f.SetLineWidth(2);
-    g.SetMaximum(0.3);
-    SetEtaBin(eta);
-    TGraphErrors gsf = GetTGraph(etaBin_);
-    gsf.SetLineColor(kGreen);
-    //g.SetMinimum(0.8);
-    g.Draw("ALP");
-    gsf.Draw("sameP");
-    f.Draw("same");
-    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
-    addInfo->SetFillColor(0);
-    addInfo->SetLineColor(0);
-    addInfo->SetFillStyle(0);
-    addInfo->SetBorderSize(0);
-    addInfo->SetTextFont(42);
-    addInfo->SetTextSize(0.040);
-    addInfo->SetTextAlign(12);
-    float Chi2 = g.Chisquare(&f,"R");
-    int ndof   = maxBinpt_ -2;
-    std::cout << " chi2 " <<  Chi2 << " ndof " << ndof << std::endl;
-    addInfo->AddText(Form("#eta =  %.1f ", eta));
-    addInfo->AddText(f.GetExpFormula());
-    addInfo->AddText(Form("#chi^{2}/ndof = %.3f ",Chi2/ndof));
-    addInfo->Draw("same");
-    cg->SaveAs(Form("graph_%.1f_uncertainty.pdf",eta));  
-      
-    
-}
-
-
-void ScaleFactorHelper::DrawSF(TGraphErrors g, TH1F f, float eta)
-{
-    TCanvas* cg = new TCanvas();
-    g.GetXaxis()->SetTitle("pT (GeV)");
-    g.GetYaxis()->SetTitle("scale factor");
-    g.SetLineColor(kBlue);
-    g.SetLineWidth(2);
-    g.SetMarkerColor(kBlack);
-    g.SetMarkerStyle(8);
-    f.SetLineColor(kRed);
-    f.SetLineWidth(2);
-    //g.SetMaximum(1.1);
-    //g.SetMinimum(0.8);
-    g.Draw("ALP");
-    f.Draw("same");
-    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
-    addInfo->SetFillColor(0);
-    addInfo->SetLineColor(0);
-    addInfo->SetFillStyle(0);
-    addInfo->SetBorderSize(0);
-    addInfo->SetTextFont(42);
-    addInfo->SetTextSize(0.040);
-    addInfo->SetTextAlign(12);
-    addInfo->AddText(Form("#eta =  %.1f ", eta));
-    addInfo->Draw("same");
-    cg->SaveAs(Form("graph_%.1f_fitfunction%i.pdf",eta,fit_flag_));  
-      
-}
-
-
-void ScaleFactorHelper::DrawSF(TGraph g, float eta)
-{
-    TCanvas* cg = new TCanvas();
-    g.GetXaxis()->SetTitle("pT (GeV)");
-    g.GetYaxis()->SetTitle("scale factor");
-    g.SetLineColor(kBlue);
-    g.SetLineWidth(2);
-    g.SetMarkerColor(kBlack);
-    g.SetMarkerStyle(8);
-    g.Draw("ALP");
-    TPaveText* addInfo = new TPaveText(0.9,0.54,0.64,0.4,"NDC");
-    addInfo->SetFillColor(0);
-    addInfo->SetLineColor(0);
-    addInfo->SetFillStyle(0);
-    addInfo->SetBorderSize(0);
-    addInfo->SetTextFont(42);
-    addInfo->SetTextSize(0.040);
-    addInfo->SetTextAlign(12);
-    addInfo->AddText(Form("#eta =  %.1f ", eta));
-    addInfo->Draw("same");
-    cg->SaveAs(Form("graph_%.1f_uncertainty.pdf",eta));  
 }
 
 
@@ -982,7 +818,6 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      {
          f = new TF1("overX2","[0]+ [1]*(1/(x*x))",rangelow_,rangeup_);
          ndof_.insert ( std::pair<int,int>( fit_flag_, 2 ));
-         //f->SetParameter(0,egm2d_.GetBinContent(maxBinpt_,etaBin));
          f->SetParLimits(1,-6000,0.);
          return *f;
      }
@@ -990,7 +825,6 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      {
          f = new TF1("overXa","[0] + [1]*(1/x^[2])",rangelow_,rangeup_);
          ndof_.insert ( std::pair<int,int>( fit_flag_, 3 ));
-         //f->SetParLimits(1,-600,0.);
          return *f;
      }
      
@@ -999,7 +833,6 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      {
        f = new TF1("erf","TMath::Erf(([1]*x-[0]))",rangelow_,rangeup_);
        ndof_.insert ( std::pair<int,int>( fit_flag_, 2 ));
-       //f->SetParLimits(0,10,40.);
        return *f;  
      }
      
@@ -1021,7 +854,6 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      {
          f = new TF1("line","[0]",rangelow_,rangeup_);
          ndof_.insert ( std::pair<int,int>( fit_flag_, 1 ));
-         //f->SetParLimits(1,-600,0.);
          return *f;
      }
      
@@ -1039,7 +871,6 @@ TF1 ScaleFactorHelper::GetUncertaintyFunction(int etaBin)
          f = new TF1("func","[2] + [1]*(x-[0])^(2)",rangelow_,unc_range_);
          f->SetParLimits(0,30,55);
          f->SetParLimits(1,0,10000);
-         //f->SetParameter(0,45.);
          return *f;
      }
      if(uncertainty_flag_==1)

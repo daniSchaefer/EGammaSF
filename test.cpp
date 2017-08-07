@@ -31,11 +31,11 @@ int main(int argc, char** argv)
 //         ScaleFactorHelper* bla2 = new ScaleFactorHelper(EGammaInput::electronTight,0);
 //         ScaleFactorHelper* bla3 = new ScaleFactorHelper(EGammaInput::electronMVA80,0);
 //         ScaleFactorHelper* bla4 = new ScaleFactorHelper(EGammaInput::electronMVA90,0);
-//         
-//         
+        
+         
 //         ScaleFactorHelper* bla0p = new ScaleFactorHelper(EGammaInput::photonMedium,0);
 //         ScaleFactorHelper* bla1p = new ScaleFactorHelper(EGammaInput::photonLoose,0);
-//         ScaleFactorHelper* bla2p = new ScaleFactorHelper(EGammaInput::photonTight,0);
+     //    ScaleFactorHelper* bla2p = new ScaleFactorHelper(EGammaInput::photonTight,1);
          // ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronVetoPixelSeedEndcap,1);
         
         
