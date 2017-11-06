@@ -215,7 +215,8 @@ public:
 
    
 // initialize flags for used fit an uncertainty functions 
- void SetFitFlag(int etaBin);  
+ void SetFitFlag(int etaBin);
+ 
  
 // do fits for smoothed sf and unc 
  void InitializeSF();   
@@ -293,7 +294,7 @@ void SetPtBin( float pT);
  
 // //===============================================
 // try all implemented fit functions and find the one with best fit
- void TryFits();
+std::vector<double> TryFits(std::vector<int> fitflags,int binmin,int binmax);
  
  
  
@@ -321,16 +322,20 @@ void PrintDebug(std::string stuff)
 {
   if(debug_flag_)
   {
-    std::cout << stuff << std::endl;   
+    logfile_.open("out.log",ios::app);  
+    logfile_ << stuff << std::endl; 
+    logfile_.close();
   }
 };
  
-
+void SetFitFlagManually(int etaBin,int flag) { local_flag_.at(etaBin) = flag;};
  
  
 //               private variables
 //===============================================
 //===============================================
+
+        std::ofstream logfile_;
         std::string file_;          
         bool debug_flag_ =0;                   // if set to 1 print/draw additional information
         int fit_flag_ = 0;                     // use different functions for the fit of SF (smoothing)

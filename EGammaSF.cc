@@ -15,6 +15,7 @@
 #include "TFile.h"
 #include "TCanvas.h"
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 
 // convert enum class to string -> used for naming 
@@ -44,6 +45,9 @@ std::string GetString(EGammaInput sf){
 
 ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
  {
+   logfile_.open("out.log",ios::trunc);
+   logfile_ << "Begin scale factor fitting for "<< GetString(what) <<std::endl;
+   logfile_.close();
    debug_flag_ = debugging;
    input_ = what;
    ConfigParser* parser = new ConfigParser("config.txt",what);
@@ -109,7 +113,19 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    TFile out(outfilename.c_str(),openAs.c_str());
    // do fits /smoothing in these functions or load the predifined fit functions for user usage:
    if (input_ != EGammaInput::electronRecoSF){
-        TryFits();
+        std::vector<int> fitflags = {4,11,6};
+        std::vector<double> Chi2 = TryFits(fitflags,1, maxBineta_);
+        for(int c=0;c<Chi2.size();c++)
+        {
+            if (Chi2.at(c) >3.0) {
+            PrintDebug(Form( "ATTENTION: fit failed! chi2  = %.2f  for eta bin %i",Chi2.at(c),egm2d_.GetXaxis()->GetBinCenter(c+1)));
+            fitflags = {6,0,1,3,9,10,4};
+            fit_flag_= -99;
+            std::cout << "use alternative fits !"<<std::endl;
+            TryFits(fitflags,c+1,c+1);
+            }
+        }
+        //SetFitFlagManually(9,1);
         InitializeSF();
         InitializeUnc();
         // draw fits for cross checking
@@ -132,7 +148,8 @@ ScaleFactorHelper::~ScaleFactorHelper(void) { }
                                                   uncertainty_flag_ = local_unc_flag_.at(etaBin);
                                                   unc_range_ =  unc_range_local_.at(etaBin);
 }
- 
+
+
  
 TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
 {
@@ -146,18 +163,20 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
     return *g;
 }
  
- void ScaleFactorHelper::TryFits()
+ std::vector<double> ScaleFactorHelper::TryFits(std::vector<int> fitflags,int binmin,int binmax)
  {
    if(fit_flag_==-99 and debug_flag_)
    {
-      for(int eb = 1; eb < maxBineta_+1;eb++)
-      //for(int eb = 2; eb < 2+1;eb++)
+      std::vector<double> result={}; 
+      for(int eb = binmin; eb < binmax+1;eb++)
+      //for(int eb = 1; eb < 1+1;eb++)
       {    
     // try which function fits best
+          PrintDebug(Form( "=========================================== eta bin %i ================================ ",eb));
           TCanvas* tc = new TCanvas("tc","tc",400,400);
           std::vector<double> chi2={};
           std::vector<int> ndof={};
-          std::vector<int> fitflags = {0,1,2,3,4,11,6};
+          //std::vector<int> fitflags = {0,1,2,3,4,11,6};
            
           std::vector<TGraphErrors> graphs ={};
           std::vector<TF1> fits={};
@@ -166,13 +185,9 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
           for(int f=0; f< fitflags.size(); f++)
           {
             
-            //TH1F h = GetHisto(eb);
-            //h.Smooth();
-            //TGraphErrors gS = GetGraphNumSmoothed(h);
             fit_flag_ = fitflags.at(f);
             TF1 fit = FitScaleFactor(gS,eb);
             chi2.push_back(fit.GetChisquare());
-            //ndof.push_back(fit.GetNDF());
             ndof.push_back(ndof_[fitflags.at(f)]);
             std::cout << chi2[eb] << " "<<ndof[eb] << std::endl;
             fits.push_back(fit);
@@ -182,6 +197,8 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
            gS.SetLineColor(kBlue);
            gS.SetLineWidth(2);
            gS.Draw("alp");
+           
+           
           for(int i=0;i<fits.size();i++)
           {
            fits.at(i).SetLineColor(kRed+i);
@@ -194,23 +211,35 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
           tc->SaveAs(("fitTestsSF_bin"+std::to_string(eb)+".pdf").c_str());
         int index=0;
         double Lmin =10000;
-         std::cout << "=========================================== eta bin " << eb<< "================================ "<< std::endl;
         for ( int i=0;i<chi2.size();i++)
         {
-          double L = TMath::Log(chi2.at(i)) + ndof.at(i);
-          std::cout << " likelihood " << L << " fit function " << fitflags.at(i)<< std::endl;
+          double L = chi2.at(i) + ndof.at(i);
+          PrintDebug(Form( "Chi2 %.2f fit function %i",chi2.at(i), fitflags.at(i)));
           std::cout << " chi2 " << chi2.at(i) << std::endl;
-          if (L < Lmin and !(TMath::Abs(TMath::Log(chi2.at(i)))== std::numeric_limits<double>::infinity()) )
+          if (L < Lmin and !(TMath::Abs(chi2.at(i))== std::numeric_limits<double>::infinity()) )
           {
            Lmin = L;
            index = i;   
           }
         }
+        PrintDebug(Form("Lmin %.3f  index %i   ",Lmin,index));
+        if ( int(chi2.at(index)*10) < 10 and int(chi2.at(index)*10) !=0)
+        {
+          for(unsigned int c = 0; c < chi2.size();c++)
+          {
+            if(chi2.at(c) < 1 and chi2.at(c) > chi2.at(index))
+                index = c;
+          }
+        }
     // set local fit flag to the best function!
-        std::cout << " taking fit function :  " << fitflags.at(index) << std::endl;
-        local_flag_[eb] = fitflags.at(index);  
-      }    
-   } 
+        PrintDebug(Form( " taking fit function : %i index %i",fitflags.at(index),index));
+        local_flag_[eb] = fitflags.at(index);
+        std::cout << local_flag_[eb] <<std::endl;
+        result.push_back(chi2.at(index));
+      } 
+      return result;
+   }
+   
  }
  
  // inialize smooth scale factors :
@@ -712,6 +741,7 @@ void ScaleFactorHelper::DrawAll()
    std::string modifier = GetString(input_);
    drawAll->Modified();
    drawAll->SaveAs(Form("All_%s.pdf",modifier.c_str()));
+   std::cout << " draw all scale factors All_"<< modifier <<std::endl;
  
   }
 }
@@ -844,7 +874,32 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
      }
      if(fit_flag_==6)
      {
-       f = new TF1("line2","[0]+[1]*x ",rangelow_,rangeup_);
+       f = new TF1("pol2","[0]+[1]*x ",rangelow_,rangeup_);
+       ndof_.insert ( std::pair<int,int>( fit_flag_, 2 ));
+       return *f;  
+     }
+     if(fit_flag_==7)
+     {
+       f = new TF1("pol3","[0]+[1]*x +[2]*x*x ",rangelow_,rangeup_);
+       ndof_.insert ( std::pair<int,int>( fit_flag_, 3 ));
+       return *f;  
+     }
+     if(fit_flag_==8)
+     {
+       f = new TF1("pol4","[0]+[1]*x +[2]*x*x + [3]*x*x*x",rangelow_,rangeup_);
+       ndof_.insert ( std::pair<int,int>( fit_flag_, 4 ));
+       return *f;  
+     }
+     if(fit_flag_==9)
+     {
+       f = new TF1("1+1/sqrt(x)","[0]+[1]/TMath::Sqrt(x)",rangelow_,rangeup_);
+       ndof_.insert ( std::pair<int,int>( fit_flag_, 2 ));
+       return *f;  
+     }
+     
+     if(fit_flag_==10)
+     {
+       f = new TF1("test","([1]+ [0]*TMath::Sqrt(x)) ",rangelow_,rangeup_);
        ndof_.insert ( std::pair<int,int>( fit_flag_, 2 ));
        return *f;  
      }
@@ -857,7 +912,7 @@ float ScaleFactorHelper::GetEfficiency(float pT, float superClusterEta,bool isDa
          return *f;
      }
      
-     
+     std::cout << fit_flag_ <<std::endl;
      throw my_range_error("wrong fitting flag used in scale factor fit");
  }
 
