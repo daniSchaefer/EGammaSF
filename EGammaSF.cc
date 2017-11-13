@@ -87,11 +87,14 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    local_flag_ = parser->LocalFitFlag();
    local_unc_flag_ = parser->LocalUncFlag();
    unc_range_local_ = parser->GetFitRangeUnc();
+   range_user_ = parser->GetRangeUser();
+   float SFupperBound = egm2d_.GetYaxis()->GetBinLowEdge(maxBinpt_-1)+ egm2d_.GetYaxis()->GetBinWidth(maxBinpt_-1);
    for (int e=1;e<= maxBineta_;e++)
    {
     if(local_flag_.find(e)==  local_flag_.end()) local_flag_.insert(std::pair<int, int>(e,fit_flag_));
     if(local_unc_flag_.find(e)==  local_unc_flag_.end()) local_unc_flag_.insert(std::pair<int, int>(e,uncertainty_flag_));
     if(unc_range_local_.find(e) == unc_range_local_.end()) unc_range_local_.insert(std::pair<int,int>(e,rangeup_));
+    if(range_user_.find(e)== range_user_.end()) range_user_.insert(std::pair<int,float>(e,SFupperBound));
    }
    
 
@@ -484,7 +487,7 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
 float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
 {
    SetEtaBin(superClusterEta);
-   float upperRange = egm2d_.GetYaxis()->GetBinLowEdge(maxBinpt_-1)+ egm2d_.GetYaxis()->GetBinWidth(maxBinpt_-1);
+   float upperRange = range_user_[etaBin_];
    SetPtBin(pT);
    SetFitFlag(etaBin_);
    float sf;
