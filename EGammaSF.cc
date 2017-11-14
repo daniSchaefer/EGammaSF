@@ -47,7 +47,7 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
  {
    logfile_.open("out.log",ios::trunc);
    logfile_ << "Begin scale factor fitting for "<< GetString(what) <<std::endl;
-   logfile_.close();
+//    logfile_.close();
    debug_flag_ = debugging;
    input_ = what;
    ConfigParser* parser = new ConfigParser("config.txt",what);
@@ -56,6 +56,7 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    std::string openAs = "READ";
    TFile file(filename.c_str(),openAs.c_str());
         if (file.IsZombie()) throw file_not_found();
+   logfile_ << "opening file " <<filename << std::endl;     
    std::string outfilename = "OUT"+filename;
    file_ = outfilename;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));
@@ -114,20 +115,22 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    PrintDebug(Form("create output file %s ",outfilename.c_str())); 
    if(debug_flag_) openAs = "RECREATE";
    TFile out(outfilename.c_str(),openAs.c_str());
+   logfile_ << "opening next file  " <<outfilename << std::endl;
    // do fits /smoothing in these functions or load the predifined fit functions for user usage:
    if (input_ != EGammaInput::electronRecoSF){
-        std::vector<int> fitflags = {4,11,6};
-        std::vector<double> Chi2 = TryFits(fitflags,1, maxBineta_);
-        for(int c=0;c<Chi2.size();c++)
-        {
-            if (Chi2.at(c) >3.0) {
-            PrintDebug(Form( "ATTENTION: fit failed! chi2  = %.2f  for eta bin %i",Chi2.at(c),egm2d_.GetXaxis()->GetBinCenter(c+1)));
-            fitflags = {6,0,1,3,9,10,4};
-            fit_flag_= -99;
-            std::cout << "use alternative fits !"<<std::endl;
-            TryFits(fitflags,c+1,c+1);
+       if(debug_flag_){
+            std::vector<int> fitflags = {4,11,6};
+            std::vector<double> Chi2 = TryFits(fitflags,1, maxBineta_);
+            for(int c=0;c<Chi2.size();c++)
+            {
+                if (Chi2.at(c) >3.0) {
+                PrintDebug(Form( "ATTENTION: fit failed! chi2  = %.2f  for eta bin %i",Chi2.at(c),egm2d_.GetXaxis()->GetBinCenter(c+1)));
+                fitflags = {6,0,1,3,9,10,4};
+                fit_flag_= -99;
+                TryFits(fitflags,c+1,c+1);
+                }
             }
-        }
+       }
         //SetFitFlagManually(9,1);
         InitializeSF();
         InitializeUnc();
@@ -135,6 +138,7 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         DrawAll();
         DrawAllUncertainty();
    }
+   logfile_.close();
    out.Close();   
  }
  
@@ -145,6 +149,7 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
 ScaleFactorHelper::~ScaleFactorHelper(void) { }
 
 
+//bool ScaleFactorHelper::CheckForOutliers(){}
 
  // set local fit flags corresponding to the etaBin in use
  void ScaleFactorHelper::SetFitFlag(int etaBin) { fit_flag_         = local_flag_.at(etaBin);
@@ -248,6 +253,7 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
  // inialize smooth scale factors :
  void ScaleFactorHelper::InitializeSF()
  {
+     std::cout << " bis heir " << std::endl;
         PrintDebug("===============================================================");
         PrintDebug("starting fit for scale factors ");
         PrintDebug("==============================================================="); 
@@ -512,6 +518,7 @@ float ScaleFactorHelper::GetSFSmooth(float pT, float superClusterEta)
 
 TF1 ScaleFactorHelper::SetSFFunction(int etaBin)
 {
+    
     TFile file(file_.c_str(),"READ");
     if (file.IsZombie()) throw file_not_found();
     TF1 func = *dynamic_cast<TF1*>(file.Get(Form("smooth_sf_etabin%i",etaBin)));
