@@ -57,8 +57,7 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
    TFile file(filename.c_str(),openAs.c_str());
         if (file.IsZombie()) throw file_not_found();
    logfile_ << "opening file " <<filename << std::endl;     
-   std::string outfilename = "OUT"+filename;
-   file_ = outfilename;
+   file_ = filename;
    egm2d_ = *dynamic_cast<TH2F*>(file.Get(parser->NameSF().c_str()));
    
    if (parser->NameEffData().find("NONE")==std::string::npos)
@@ -112,10 +111,10 @@ ScaleFactorHelper::ScaleFactorHelper(EGammaInput what, bool debugging )
         }
    
    // if in debug mode open output file to write the fit functions into
-   PrintDebug(Form("create output file %s ",outfilename.c_str())); 
+   PrintDebug(Form("create output file %s ",filename.c_str())); 
    if(debug_flag_) openAs = "RECREATE";
-   TFile out(outfilename.c_str(),openAs.c_str());
-   logfile_ << "opening next file  " <<outfilename << std::endl;
+   TFile out(filename.c_str(),openAs.c_str());
+   logfile_ << "opening next file  " <<filename << std::endl;
    // do fits /smoothing in these functions or load the predifined fit functions for user usage:
    if (input_ != EGammaInput::electronRecoSF){
        if(debug_flag_){
@@ -181,10 +180,8 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
       {    
     // try which function fits best
           PrintDebug(Form( "=========================================== eta bin %i ================================ ",eb));
-          TCanvas* tc = new TCanvas("tc","tc",400,400);
           std::vector<double> chi2={};
           std::vector<int> ndof={};
-          //std::vector<int> fitflags = {0,1,2,3,4,11,6};
            
           std::vector<TGraphErrors> graphs ={};
           std::vector<TF1> fits={};
@@ -201,22 +198,8 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
             fits.push_back(fit);
         
           }
-          TLegend* leg = new TLegend(0.4304361,0.263552,0.808124,0.5624967);
-           gS.SetLineColor(kBlue);
-           gS.SetLineWidth(2);
-           gS.Draw("alp");
-           
-           
-          for(int i=0;i<fits.size();i++)
-          {
-           fits.at(i).SetLineColor(kRed+i);
-           if (i==5) fits.at(i).SetLineColor(kMagenta);
-           fits.at(i).SetLineWidth(2);
-           fits.at(i).Draw("same");
-           leg->AddEntry(&fits.at(i),fits.at(i).GetName(),"l");
-          }
-          leg->Draw("same");
-          tc->SaveAs(("fitTestsSF_bin"+std::to_string(eb)+".pdf").c_str());
+          
+          
         int index=0;
         double Lmin =10000;
         for ( int i=0;i<chi2.size();i++)
@@ -275,19 +258,7 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
                 graph_.push_back(g);
                 if(fit_flag_!=100)
                 {
-                    fit = FitScaleFactor(g,i);
-                    if(i==4 )
-                        {
-                        TCanvas* tc = new TCanvas("tc","tc",400,400);
-                        g.Draw("alp");
-                        fit.Draw("same");
-                        tc->SaveAs("debug2.pdf");
-                       std::cout << "debug2 "<<fit_flag_ << std::endl;
-                       std::cout << rangelow_ << " "<< rangeup_ <<std::endl;
-                       std::cout << fit.GetName() << std::endl;
-                            
-                        }
-                    
+                    fit = FitScaleFactor(g,i);                    
                     fit.SetName(Form("smooth_sf_etabin%i",i));
                     PrintDebug(Form("fitted scale factor for eta bin %i using function %i",i,fit_flag_));
                     fit.Write();
@@ -334,11 +305,8 @@ TGraphErrors ScaleFactorHelper::GetGraphNumSmoothed(TH1F h)
         {
          float pt = egm2d_.GetYaxis() -> GetBinCenter(j);
          float eta = egm2d_.GetXaxis() -> GetBinCenter(etaBin);
-         std::cout << "test " << std::endl;
-         std::cout << pt << std::endl;
          testhisto->Fill(pt, GetSF(pt,eta));
          testhisto->SetBinError(j,GetUncertainty(pt,eta));
-         std::cout << "test2 " << std::endl;
         }   
      
    return *testhisto;  
