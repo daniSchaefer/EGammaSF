@@ -55,17 +55,17 @@ int main(int argc, char** argv)
 {
      try{
         //initialize scale factor helper : 
-//          ScaleFactorHelper* bla0  = new ScaleFactorHelper(EGammaInput::electronCutBasedVetoID,1);
-//          ScaleFactorHelper* bla1 = new ScaleFactorHelper(EGammaInput::electronMedium,1);
-//          ScaleFactorHelper* bla2 = new ScaleFactorHelper(EGammaInput::electronLoose,1);
+         ScaleFactorHelper* bla0  = new ScaleFactorHelper(EGammaInput::electronCutBasedVetoID,1);
+         ScaleFactorHelper* bla1 = new ScaleFactorHelper(EGammaInput::electronMedium,1);
+         ScaleFactorHelper* bla2 = new ScaleFactorHelper(EGammaInput::electronLoose,1);
          ScaleFactorHelper* bla3 = new ScaleFactorHelper(EGammaInput::electronTight,0);
-//          ScaleFactorHelper* bla4 = new ScaleFactorHelper(EGammaInput::electronMVA80,1);
-//          ScaleFactorHelper* bla5 = new ScaleFactorHelper(EGammaInput::electronMVA90,1);
-//          
-//           
-//          ScaleFactorHelper* bla0p = new ScaleFactorHelper(EGammaInput::photonMedium,1);
-//          ScaleFactorHelper* bla1p = new ScaleFactorHelper(EGammaInput::photonLoose,1);
-//          ScaleFactorHelper* bla2p = new ScaleFactorHelper(EGammaInput::photonTight,1);
+         ScaleFactorHelper* bla4 = new ScaleFactorHelper(EGammaInput::electronMVA80,1);
+         ScaleFactorHelper* bla5 = new ScaleFactorHelper(EGammaInput::electronMVA90,1);
+         
+          
+         ScaleFactorHelper* bla0p = new ScaleFactorHelper(EGammaInput::photonMedium,1);
+         ScaleFactorHelper* bla1p = new ScaleFactorHelper(EGammaInput::photonLoose,1);
+         ScaleFactorHelper* bla2p = new ScaleFactorHelper(EGammaInput::photonTight,1);
 //         //ScaleFactorHelper* bla = new ScaleFactorHelper(EGammaInput::electronVetoPixelSeedEndcap,1);
         
         

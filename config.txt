@@ -84,6 +84,8 @@
    name=egammaEffi_MVA80.root
    FitFunction=findBestFit
    UncFunction=1000
+        SetRangeUser<7<7=120
+        SetRangeUser<9<9=120
    
 ]
 [electronMedium
@@ -95,7 +97,10 @@
    name=egammaEffi_MVA90ID.root
    FitFunction=findBestFit
    UncFunction=1000
-   
+        SetRangeUser<1<2=120
+        SetRangeUser<5<5=120
+        SetRangeUser<7<7=120
+        SetRangeUser<9<9=120
 ]
 
 [electronCutBasedVetoID
